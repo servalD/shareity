@@ -47,7 +47,7 @@ interface WalletProviderProps {
  * - creates escrow transactions
  */
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
-  const { sdk, user, authorize } = useAuth();
+  const { sdk, user, authorize, logout } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
@@ -107,6 +107,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    * Disconnects wallet and clears state
    */
   const disconnectWallet = useCallback(() => {
+    logout();
     setIsConnected(false);
     setAddress(null);
     setBalance(0);

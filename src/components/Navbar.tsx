@@ -18,7 +18,7 @@ const Navbar: React.FC = () => {
     { name: 'Causes', href: '/causes', icon: Heart },
   ];
   const isActive = (path: string) => location.pathname === path;
-  console.log(isAuthenticated, user, isConnected, address, balance);
+  console.log(isAuthenticated, isConnected, address, balance);
 
   return (
     <>
@@ -42,8 +42,8 @@ const Navbar: React.FC = () => {
                     key={item.name}
                     to={item.href}
                     className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-all duration-200 ${isActive(item.href)
-                        ? 'bg-blue-600/20 text-blue-400'
-                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                      ? 'bg-blue-600/20 text-blue-400'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10'
                       }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -55,52 +55,50 @@ const Navbar: React.FC = () => {
 
             {/* Auth & Wallet Section */}
             <div className="hidden md:flex items-center space-x-4">
-              {/* Connect DID if not authenticated */}
-              {!isAuthenticated ? (
-                <>
-                  {/* Connect Wallet if DID connected but wallet not */}
-                  {!isConnected ? (
-                    <button
-                      onClick={connectWallet}
-                      className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-teal-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200"
-                    >
-                      <WalletIcon className="w-4 h-4" />
-                      <span>Connect Wallet</span>
-                    </button>
-                  ) : (
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <div className="text-sm text-gray-300">
-                          {address?.slice(0, 6)}...{address?.slice(-4)}
-                        </div>
-                        <div className="text-xs text-green-400">{balance} XRP</div>
-                      </div>
-                      <Link
-                        to="/dashboard"
-                        className="flex items-center space-x-2 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-200"
-                      >
-                        <UserIcon className="w-4 h-4" />
-                        <span>Dashboard</span>
-                      </Link>
-                      {/* Optionally include logout */}
-                      <button
-                        onClick={logout}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
+              {/* Connect Wallet if DID connected but wallet not */}
+              {!isConnected ? (
                 <button
-                  onClick={() => setIsDIDModalOpen(true)}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+                  onClick={connectWallet}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-teal-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200"
                 >
-                  <UserIcon className="w-4 h-4" />
-                  <span>Connect DID</span>
+                  <WalletIcon className="w-4 h-4" />
+                  <span>Connect Wallet</span>
                 </button>
-              )}
+              ) : (
+                <>
+                  {/* Connect DID if not authenticated */}
+                  {!isAuthenticated ?
+                    < button
+                      onClick={() => setIsDIDModalOpen(true)}
+                      className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+                    >
+                      <UserIcon className="w-4 h-4" />
+                      <span>Connect DID</span>
+                    </button> : (
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <div className="text-sm text-gray-300">
+                            {address?.slice(0, 6)}...{address?.slice(-4)}
+                          </div>
+                          <div className="text-xs text-green-400">{balance} XRP</div>
+                        </div>
+                        <Link
+                          to="/dashboard"
+                          className="flex items-center space-x-2 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-200"
+                        >
+                          <UserIcon className="w-4 h-4" />
+                          <span>Dashboard</span>
+                        </Link>
+                      </div>
+                      )}
+                    <button
+                      onClick={logout}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      Logout
+                    </button>
+                </>
+              ) }
             </div>
 
             {/* Mobile menu button */}
@@ -125,8 +123,8 @@ const Navbar: React.FC = () => {
                     to={item.href}
                     onClick={() => setIsMenuOpen(false)}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${isActive(item.href)
-                        ? 'bg-blue-600/20 text-blue-400'
-                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                      ? 'bg-blue-600/20 text-blue-400'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10'
                       }`}
                   >
                     <Icon className="w-4 h-4" />
