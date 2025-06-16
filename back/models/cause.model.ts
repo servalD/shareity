@@ -46,6 +46,6 @@ Cause.init({
     }
 }, {
     sequelize,
-    tableName: 'airports',
+    tableName: 'cause',
     timestamps: false
 });
