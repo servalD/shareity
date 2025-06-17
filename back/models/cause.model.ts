@@ -6,6 +6,9 @@ export class Cause extends Model {
     public title!: string;
     public description!: string;
     public location!: string;
+    public addressDestination!: string;
+    public imageUrl!: string;
+    public raisedAmount!: number;
     public goal!: number;
     public supporters!: number;
     public isClosed!: boolean;
@@ -28,6 +31,19 @@ Cause.init({
     location: {
         type: DataTypes.STRING,
         allowNull: false
+    },
+    addressDestination: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    imageUrl: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    raisedAmount: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+        defaultValue: 0
     },
     goal: {
         type: DataTypes.FLOAT,
