@@ -49,11 +49,11 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause })
 
     try {
       console.log('🎁 Starting donation:', { amount, address, cause: cause.title });
-      
+
       const txId = await sendPayment(address, amount);
       setTransactionId(txId);
       setStep('success');
-      
+
       console.log('✅ Donation successful, txId:', txId);
     } catch (error) {
       console.error('❌ Donation failed:', error);
@@ -104,18 +104,17 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause })
               <label className="block text-sm font-medium text-gray-300 mb-3">
                 Donation Amount (XRP)
               </label>
-              
+
               {/* Preset amounts */}
               <div className="grid grid-cols-5 gap-2 mb-3">
                 {presetAmounts.map((preset) => (
                   <button
                     key={preset}
                     onClick={() => setAmount(preset)}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      amount === preset
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${amount === preset
                         ? 'bg-green-600 text-white'
                         : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                    }`}
+                      }`}
                   >
                     {preset}
                   </button>
@@ -207,11 +206,11 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause })
               disabled={isProcessing || !isFormValid || isInsufficientBalance || !isConnected}
               className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-3 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {!isConnected 
+              {!isConnected
                 ? 'Connect Wallet First'
                 : isInsufficientBalance
-                ? 'Insufficient Balance'
-                : `Donate ${amount} XRP`
+                  ? 'Insufficient Balance'
+                  : `Donate ${amount} XRP`
               }
             </button>
           </div>
