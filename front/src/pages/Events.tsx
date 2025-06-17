@@ -1,134 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Users, Heart, Filter, Search, Clock, Star } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: Date;
-  location: string;
-  price: number;
-  capacity: number;
-  registered: number;
-  image: string;
-  category: string;
-  cause: {
-    name: string;
-    percentage: number;
-  };
-  organizer: string;
-  featured: boolean;
-}
+import { EventService } from '../services/events.service';
+import { IEventWithCauseId } from '../models/events.model';
+import { ServiceErrorCode } from '../services/service.result';
 
 const Events = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCause, setSelectedCause] = useState('all');
   const [sortBy, setSortBy] = useState('date');
+  const [events, setEvents] = useState<IEventWithCauseId[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const categories = ['all', 'conference', 'workshop', 'charity', 'sports', 'music', 'education'];
   const causes = ['all', 'education', 'healthcare', 'environment', 'poverty', 'disaster-relief'];
 
-  const mockEvents: Event[] = [
-    {
-      id: '1',
-      title: 'Tech for Good Conference 2024',
-      description: 'Join leading technologists discussing how technology can solve global challenges.',
-      date: new Date('2024-03-15'),
-      location: 'Mumbai, India',
-      price: 50,
-      capacity: 500,
-      registered: 342,
-      image: 'https://images.pexels.com/photos/2774556/pexels-photo-2774556.jpeg',
-      category: 'conference',
-      cause: { name: 'Education', percentage: 30 },
-      organizer: 'Tech Foundation',
-      featured: true
-    },
-    {
-      id: '2',
-      title: 'Blockchain Workshop for Beginners',
-      description: 'Learn the fundamentals of blockchain technology and XRPL development.',
-      date: new Date('2024-03-20'),
-      location: 'Delhi, India',
-      price: 25,
-      capacity: 100,
-      registered: 78,
-      image: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg',
-      category: 'workshop',
-      cause: { name: 'Education', percentage: 25 },
-      organizer: 'Crypto Academy',
-      featured: false
-    },
-    {
-      id: '3',
-      title: 'Charity Marathon for Clean Water',
-      description: 'Run for a cause and help provide clean water access to rural communities.',
-      date: new Date('2024-03-25'),
-      location: 'Bangalore, India',
-      price: 15,
-      capacity: 1000,
-      registered: 567,
-      image: 'https://images.pexels.com/photos/2402777/pexels-photo-2402777.jpeg',
-      category: 'charity',
-      cause: { name: 'Healthcare', percentage: 50 },
-      organizer: 'Water Foundation',
-      featured: true
-    },
-    {
-      id: '4',
-      title: 'Green Energy Summit',
-      description: 'Exploring renewable energy solutions for sustainable development.',
-      date: new Date('2024-04-02'),
-      location: 'Chennai, India',
-      price: 40,
-      capacity: 300,
-      registered: 156,
-      image: 'https://images.pexels.com/photos/2800832/pexels-photo-2800832.jpeg',
-      category: 'conference',
-      cause: { name: 'Environment', percentage: 40 },
-      organizer: 'Green Tech Alliance',
-      featured: false
-    },
-    {
-      id: '5',
-      title: 'Music for Mental Health',
-      description: 'A benefit concert raising awareness and funds for mental health support.',
-      date: new Date('2024-04-10'),
-      location: 'Pune, India',
-      price: 30,
-      capacity: 800,
-      registered: 623,
-      image: 'https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg',
-      category: 'music',
-      cause: { name: 'Healthcare', percentage: 35 },
-      organizer: 'Music Therapy Collective',
-      featured: true
-    },
-    {
-      id: '6',
-      title: 'Youth Leadership Workshop',
-      description: 'Empowering young leaders to create positive change in their communities.',
-      date: new Date('2024-04-15'),
-      location: 'Hyderabad, India',
-      price: 20,
-      capacity: 150,
-      registered: 89,
-      image: 'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg',
-      category: 'education',
-      cause: { name: 'Education', percentage: 45 },
-      organizer: 'Youth Empowerment Network',
-      featured: false
-    }
-  ];
+  // Charger les événements depuis la base de données
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+        const result = await EventService.getAllEvents();
+        
+        if (result.errorCode === ServiceErrorCode.success && result.result) {
+          setEvents(result.result);
+        } else {
+          setError('Failed to load events');
+        }
+      } catch (err) {
+        setError('An error occurred while loading events');
+        console.error('Error loading events:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredEvents = mockEvents.filter(event => {
+    loadEvents();
+  }, []);
+
+  const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || event.category === selectedCategory;
-    const matchesCause = selectedCause === 'all' || event.cause.name.toLowerCase() === selectedCause;
+    const matchesCategory = selectedCategory === 'all' || event.title.toLowerCase().includes(selectedCategory);
+    const matchesCause = selectedCause === 'all' || 
+                        (event.cause && event.cause.title.toLowerCase().includes(selectedCause));
     
     return matchesSearch && matchesCategory && matchesCause;
   });
@@ -136,22 +54,64 @@ const Events = () => {
   const sortedEvents = [...filteredEvents].sort((a, b) => {
     switch (sortBy) {
       case 'date':
-        return a.date.getTime() - b.date.getTime();
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
       case 'price':
-        return a.price - b.price;
+        return a.ticketPrice - b.ticketPrice;
       case 'popularity':
-        return b.registered - a.registered;
+        return b.attendees - a.attendees;
       default:
         return 0;
     }
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading events...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-16">
+            <h3 className="text-xl font-semibold text-white mb-2">Error loading events</h3>
+            <p className="text-gray-400 mb-6">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Discover Events</h1>
+          <div className="flex items-center justify-between mb-4">
+            <div></div> {/* Spacer */}
+            <h1 className="text-4xl font-bold text-white">Discover Events</h1>
+            <Link
+              to="/create-event"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium flex items-center space-x-2"
+            >
+              <Calendar className="w-5 h-5" />
+              <span>Create Event</span>
+            </Link>
+          </div>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
             Join events that make a difference. Every ticket purchase supports charitable causes.
           </p>
@@ -214,7 +174,7 @@ const Events = () => {
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-gray-400">
-            Showing {sortedEvents.length} of {mockEvents.length} events
+            Showing {sortedEvents.length} of {events.length} events
           </p>
         </div>
 
@@ -228,18 +188,12 @@ const Events = () => {
               {/* Event Image */}
               <div className="relative h-48 overflow-hidden">
                 <img
-                  src={event.image}
+                  src={event.imageUrl}
                   alt={event.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                {event.featured && (
-                  <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                    <Star className="w-4 h-4" />
-                    <span>Featured</span>
-                  </div>
-                )}
                 <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
-                  {event.category}
+                  Event
                 </div>
               </div>
 
@@ -256,32 +210,34 @@ const Events = () => {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center text-gray-300 text-sm">
                     <Calendar className="w-4 h-4 mr-2 text-blue-400" />
-                    {format(event.date, 'MMM dd, yyyy')}
+                    {format(new Date(event.date), 'MMM dd, yyyy')}
                   </div>
                   <div className="flex items-center text-gray-300 text-sm">
                     <MapPin className="w-4 h-4 mr-2 text-green-400" />
-                    {event.location}
+                    {event.city}, {event.country}
                   </div>
                   <div className="flex items-center text-gray-300 text-sm">
                     <Users className="w-4 h-4 mr-2 text-purple-400" />
-                    {event.registered}/{event.capacity} registered
+                    {event.attendees}/{event.maxAttendees} registered
                   </div>
-                  <div className="flex items-center text-gray-300 text-sm">
-                    <Heart className="w-4 h-4 mr-2 text-pink-400" />
-                    {event.cause.percentage}% to {event.cause.name}
-                  </div>
+                  {event.cause && (
+                    <div className="flex items-center text-gray-300 text-sm">
+                      <Heart className="w-4 h-4 mr-2 text-pink-400" />
+                      Supporting: {event.cause.title}
+                    </div>
+                  )}
                 </div>
 
                 {/* Progress Bar */}
                 <div className="mb-4">
                   <div className="flex justify-between text-sm text-gray-400 mb-1">
                     <span>Registration Progress</span>
-                    <span>{Math.round((event.registered / event.capacity) * 100)}%</span>
+                    <span>{Math.round((event.attendees / event.maxAttendees) * 100)}%</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2">
                     <div
                       className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(event.registered / event.capacity) * 100}%` }}
+                      style={{ width: `${(event.attendees / event.maxAttendees) * 100}%` }}
                     ></div>
                   </div>
                 </div>
@@ -289,7 +245,7 @@ const Events = () => {
                 {/* Price and CTA */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-2xl font-bold text-white">{event.price}</span>
+                    <span className="text-2xl font-bold text-white">{event.ticketPrice}</span>
                     <span className="text-gray-400 ml-1">XRP</span>
                   </div>
                   <Link
@@ -310,7 +266,10 @@ const Events = () => {
             <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No events found</h3>
             <p className="text-gray-400 mb-6">
-              Try adjusting your filters or search terms to find more events.
+              {events.length === 0 
+                ? "No events have been created yet. Be the first to create an event!"
+                : "Try adjusting your filters or search terms to find more events."
+              }
             </p>
             <Link
               to="/create-event"

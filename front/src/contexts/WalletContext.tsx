@@ -72,6 +72,13 @@ interface WalletContextType {
   disconnectWallet: () => void;
   sendPayment: (destination: string, amount: number) => Promise<string>;
   mintNFT: (metadata: Record<string, unknown>) => Promise<string>;
+  createNFTCollection: (collectionMetadata: {
+    name: string;
+    description: string;
+    eventId: number;
+    maxSupply: number;
+    imageUrl: string;
+  }) => Promise<string>;
   createEscrow: (destination: string, amount: number, finishAfterSeconds: number) => Promise<string>;
 }
 
@@ -264,6 +271,66 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   }, [sdk, address]);
 
   /**
+   * Creates an NFT collection for an event via NFTokenMint transaction
+   * @param collectionMetadata - Collection metadata including name, description, eventId, maxSupply, imageUrl
+   * @returns transaction hash
+   */
+  const createNFTCollection = useCallback(async (collectionMetadata: {
+    name: string;
+    description: string;
+    eventId: number;
+    maxSupply: number;
+    imageUrl: string;
+  }): Promise<string> => {
+    console.log('🎨 createNFTCollection called with metadata:', collectionMetadata);
+
+    if (!sdk || !address) {
+      const error = `Wallet not connected - sdk: ${!!sdk}, address: ${address}`;
+      console.error('❌ createNFTCollection error:', error);
+      throw new Error(error);
+    }
+
+    try {
+      // Utiliser TextEncoder au lieu de Buffer pour la compatibilité navigateur
+      const encoder = new TextEncoder();
+      const collectionData = {
+        type: 'event_collection',
+        ...collectionMetadata,
+        createdAt: new Date().toISOString(),
+        creator: address
+      };
+      const jsonString = JSON.stringify(collectionData);
+      const uint8Array = encoder.encode(jsonString);
+
+      // Convertir en hexadécimal
+      const uriHex = Array.from(uint8Array)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+
+      console.log('🔗 Collection URI hex generated:', uriHex);
+      console.log('📏 URI length:', uriHex.length, 'characters');
+
+      console.log('📝 Creating NFT collection transaction payload...');
+      const txId = await sendTx({
+        txjson: {
+          TransactionType: 'NFTokenMint',
+          Account: address,
+          URI: uriHex,
+          NFTokenTaxon: collectionMetadata.eventId, // Utiliser l'eventId comme taxon pour identifier la collection
+          Flags: 0
+        }
+      }, sdk);
+
+      console.log('📤 NFT collection transaction sent, txId:', txId);
+      if (txId) return txId;
+      throw new Error('NFT collection creation was rejected');
+    } catch (error) {
+      console.error('❌ Error in createNFTCollection:', error);
+      throw error;
+    }
+  }, [sdk, address]);
+
+  /**
    * Creates an EscrowCreate transaction via Xumm payload
    * @param destination - XRP Ledger destination address
    * @param amount - amount in XRP
@@ -303,6 +370,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     disconnectWallet,
     sendPayment,
     mintNFT,
+    createNFTCollection,
     createEscrow
   };
 

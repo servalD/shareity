@@ -3,69 +3,44 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, DollarSign, Heart, Clock, Image, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
+import { EventService } from '../services/events.service';
+import { IEvent } from '../models/events.model';
+import { ServiceErrorCode } from '../services/service.result';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { isConnected } = useWallet();
+  const { isConnected, createNFTCollection } = useWallet();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    longDescription: '',
-    category: 'conference',
     date: '',
-    endDate: '',
-    time: '',
-    endTime: '',
-    location: '',
-    capacity: '',
-    price: '',
-    image: '',
-    selectedCause: '',
-    charityPercentage: 30,
-    venueCosts: 40,
-    serviceFees: 30,
-    tags: [] as string[],
-    requirements: '',
-    agenda: [{ time: '', title: '', speaker: '' }]
+    city: '',
+    country: '',
+    maxAttendees: '',
+    ticketPrice: '',
+    imageUrl: '',
+    causeId: ''
   });
 
   const categories = [
     'conference', 'workshop', 'charity', 'sports', 'music', 'education', 'networking', 'cultural'
   ];
 
+  // Mock causes - in production, this would be fetched from the backend
   const mockCauses = [
-    { id: '1', name: 'Digital Literacy for Rural Communities', category: 'education' },
-    { id: '2', name: 'Clean Water Access Initiative', category: 'healthcare' },
-    { id: '3', name: 'Reforestation Project', category: 'environment' },
-    { id: '4', name: 'Emergency Food Relief', category: 'poverty' },
-    { id: '5', name: 'Mental Health Support Program', category: 'healthcare' },
-    { id: '6', name: 'Street Animal Rescue & Care', category: 'animal-welfare' }
+    { id: 1, title: 'Digital Literacy for Rural Communities', description: 'Supporting digital literacy programs in rural communities' },
+    { id: 2, title: 'Clean Water Access Initiative', description: 'Providing clean water access to communities in need' },
+    { id: 3, title: 'Reforestation Project', description: 'Planting trees to combat climate change' },
+    { id: 4, title: 'Emergency Food Relief', description: 'Providing emergency food assistance to families' },
+    { id: 5, title: 'Mental Health Support Program', description: 'Supporting mental health initiatives' },
+    { id: 6, title: 'Street Animal Rescue & Care', description: 'Rescuing and caring for street animals' }
   ];
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAgendaChange = (index: number, field: string, value: string) => {
-    const newAgenda = [...formData.agenda];
-    newAgenda[index] = { ...newAgenda[index], [field]: value };
-    setFormData(prev => ({ ...prev, agenda: newAgenda }));
-  };
-
-  const addAgendaItem = () => {
-    setFormData(prev => ({
-      ...prev,
-      agenda: [...prev.agenda, { time: '', title: '', speaker: '' }]
-    }));
-  };
-
-  const removeAgendaItem = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      agenda: prev.agenda.filter((_, i) => i !== index)
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,18 +56,57 @@ const CreateEvent = () => {
       return;
     }
 
-    // Simulate event creation
-    console.log('Creating event:', formData);
-    
-    // In production, this would submit to the backend
-    setTimeout(() => {
-      alert('Event created successfully!');
-      navigate('/creator-dashboard');
-    }, 1000);
+    setIsSubmitting(true);
+
+    try {
+      // Step 1: Create NFT Collection
+      console.log('🎨 Creating NFT collection for event...');
+      const collectionMetadata = {
+        name: `${formData.title} - Event Collection`,
+        description: `NFT collection for ${formData.title}. Each NFT represents a ticket to this event.`,
+        eventId: Date.now(), // Temporary ID until we get the real one from the database
+        maxSupply: parseInt(formData.maxAttendees),
+        imageUrl: formData.imageUrl
+      };
+
+      const collectionTxId = await createNFTCollection(collectionMetadata);
+      console.log('✅ NFT collection created with transaction ID:', collectionTxId);
+
+      // Step 2: Create event in database
+      console.log('💾 Creating event in database...');
+      const eventData: IEvent = {
+        title: formData.title,
+        description: formData.description,
+        date: new Date(formData.date).toISOString(),
+        city: formData.city,
+        country: formData.country,
+        maxAttendees: parseInt(formData.maxAttendees),
+        attendees: 0,
+        ticketPrice: parseFloat(formData.ticketPrice),
+        imageUrl: formData.imageUrl,
+        causeId: parseInt(formData.causeId)
+      };
+
+      const result = await EventService.createEvent(eventData);
+      
+      if (result.errorCode === ServiceErrorCode.success && result.result) {
+        console.log('✅ Event created successfully:', result.result);
+        alert('Event created successfully! NFT collection has been created and event is now live.');
+        navigate('/events');
+      } else {
+        console.error('❌ Failed to create event in database');
+        alert('Failed to create event. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error creating event:', error);
+      alert('An error occurred while creating the event. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const nextStep = () => {
-    if (currentStep < 4) setCurrentStep(currentStep + 1);
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
   };
 
   const prevStep = () => {
@@ -102,8 +116,7 @@ const CreateEvent = () => {
   const steps = [
     { number: 1, title: 'Basic Info', icon: FileText },
     { number: 2, title: 'Details', icon: Settings },
-    { number: 3, title: 'Cause & Funding', icon: Heart },
-    { number: 4, title: 'Review', icon: Calendar }
+    { number: 3, title: 'Review', icon: Calendar }
   ];
 
   return (
@@ -180,7 +193,7 @@ const CreateEvent = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Short Description</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
                   <textarea
                     required
                     value={formData.description}
@@ -193,55 +206,39 @@ const CreateEvent = () => {
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => handleInputChange('category', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {categories.map(category => (
-                        <option key={category} value={category} className="bg-slate-800">
-                          {category.charAt(0).toUpperCase() + category.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">City</label>
                     <input
                       type="text"
                       required
-                      value={formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
+                      value={formData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Event location"
+                      placeholder="Event city"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Country</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.country}
+                      onChange={(e) => handleInputChange('country', e.target.value)}
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Event country"
                     />
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Start Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={formData.date}
-                      onChange={(e) => handleInputChange('date', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Start Time</label>
-                    <input
-                      type="time"
-                      required
-                      value={formData.time}
-                      onChange={(e) => handleInputChange('time', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Event Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.date}
+                    onChange={(e) => handleInputChange('date', e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
             )}
@@ -251,26 +248,15 @@ const CreateEvent = () => {
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-white mb-6">Event Details</h2>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Detailed Description</label>
-                  <textarea
-                    value={formData.longDescription}
-                    onChange={(e) => handleInputChange('longDescription', e.target.value)}
-                    rows={6}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Provide detailed information about your event, agenda, speakers, etc."
-                  />
-                </div>
-
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Capacity</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Maximum Attendees</label>
                     <input
                       type="number"
                       required
                       min="1"
-                      value={formData.capacity}
-                      onChange={(e) => handleInputChange('capacity', e.target.value)}
+                      value={formData.maxAttendees}
+                      onChange={(e) => handleInputChange('maxAttendees', e.target.value)}
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Maximum attendees"
                     />
@@ -283,8 +269,8 @@ const CreateEvent = () => {
                       required
                       min="0"
                       step="0.01"
-                      value={formData.price}
-                      onChange={(e) => handleInputChange('price', e.target.value)}
+                      value={formData.ticketPrice}
+                      onChange={(e) => handleInputChange('ticketPrice', e.target.value)}
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Price per ticket"
                     />
@@ -295,155 +281,34 @@ const CreateEvent = () => {
                   <label className="block text-sm font-medium text-gray-300 mb-2">Event Image URL</label>
                   <input
                     type="url"
-                    value={formData.image}
-                    onChange={(e) => handleInputChange('image', e.target.value)}
+                    value={formData.imageUrl}
+                    onChange={(e) => handleInputChange('imageUrl', e.target.value)}
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="https://example.com/image.jpg"
                   />
                 </div>
 
-                {/* Agenda Builder */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-4">Event Agenda</label>
-                  <div className="space-y-4">
-                    {formData.agenda.map((item, index) => (
-                      <div key={index} className="grid md:grid-cols-4 gap-4 p-4 bg-white/5 rounded-lg">
-                        <input
-                          type="time"
-                          value={item.time}
-                          onChange={(e) => handleAgendaChange(index, 'time', e.target.value)}
-                          className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Time"
-                        />
-                        <input
-                          type="text"
-                          value={item.title}
-                          onChange={(e) => handleAgendaChange(index, 'title', e.target.value)}
-                          className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Session title"
-                        />
-                        <input
-                          type="text"
-                          value={item.speaker}
-                          onChange={(e) => handleAgendaChange(index, 'speaker', e.target.value)}
-                          className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Speaker/Host"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeAgendaItem(index)}
-                          className="px-3 py-2 bg-red-600/20 text-red-400 rounded hover:bg-red-600/30 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addAgendaItem}
-                      className="w-full py-2 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg hover:border-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                      + Add Agenda Item
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Cause & Funding */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-white mb-6">Cause & Fund Distribution</h2>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Select Charitable Cause</label>
                   <select
                     required
-                    value={formData.selectedCause}
-                    onChange={(e) => handleInputChange('selectedCause', e.target.value)}
+                    value={formData.causeId}
+                    onChange={(e) => handleInputChange('causeId', e.target.value)}
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="" className="bg-slate-800">Select a cause to support</option>
                     {mockCauses.map(cause => (
                       <option key={cause.id} value={cause.id} className="bg-slate-800">
-                        {cause.name} ({cause.category})
+                        {cause.title}
                       </option>
                     ))}
                   </select>
                 </div>
-
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Fund Distribution</h3>
-                  <p className="text-gray-300 text-sm mb-6">
-                    Configure how ticket sales will be distributed across different purposes.
-                  </p>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-medium text-gray-300">Charitable Cause</label>
-                        <span className="text-green-400 font-medium">{formData.charityPercentage}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="70"
-                        value={formData.charityPercentage}
-                        onChange={(e) => {
-                          const charity = parseInt(e.target.value);
-                          const remaining = 100 - charity;
-                          const venue = Math.round(remaining * 0.6);
-                          const service = remaining - venue;
-                          handleInputChange('charityPercentage', charity);
-                          handleInputChange('venueCosts', venue);
-                          handleInputChange('serviceFees', service);
-                        }}
-                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-medium text-gray-300">Venue & Operations</label>
-                        <span className="text-blue-400 font-medium">{formData.venueCosts}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-700 rounded-lg">
-                        <div 
-                          className="h-2 bg-blue-500 rounded-lg"
-                          style={{ width: `${formData.venueCosts}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-medium text-gray-300">Platform & Services</label>
-                        <span className="text-purple-400 font-medium">{formData.serviceFees}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-700 rounded-lg">
-                        <div 
-                          className="h-2 bg-purple-500 rounded-lg"
-                          style={{ width: `${formData.serviceFees}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 p-4 bg-white/5 rounded-lg">
-                    <h4 className="text-sm font-medium text-white mb-2">Distribution Preview</h4>
-                    <div className="text-xs text-gray-400 space-y-1">
-                      <div>For every {formData.price} XRP ticket sold:</div>
-                      <div>• {((formData.price * formData.charityPercentage) / 100).toFixed(2)} XRP goes to charity</div>
-                      <div>• {((formData.price * formData.venueCosts) / 100).toFixed(2)} XRP for venue costs</div>
-                      <div>• {((formData.price * formData.serviceFees) / 100).toFixed(2)} XRP for platform services</div>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
-            {/* Step 4: Review */}
-            {currentStep === 4 && (
+            {/* Step 3: Review */}
+            {currentStep === 3 && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-white mb-6">Review & Submit</h2>
                 
@@ -456,45 +321,49 @@ const CreateEvent = () => {
                         <span className="text-white ml-2">{formData.title}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Category:</span>
-                        <span className="text-white ml-2">{formData.category}</span>
-                      </div>
-                      <div>
                         <span className="text-gray-400">Date:</span>
-                        <span className="text-white ml-2">{formData.date} at {formData.time}</span>
+                        <span className="text-white ml-2">{formData.date}</span>
                       </div>
                       <div>
                         <span className="text-gray-400">Location:</span>
-                        <span className="text-white ml-2">{formData.location}</span>
+                        <span className="text-white ml-2">{formData.city}, {formData.country}</span>
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div>
                         <span className="text-gray-400">Capacity:</span>
-                        <span className="text-white ml-2">{formData.capacity} attendees</span>
+                        <span className="text-white ml-2">{formData.maxAttendees} attendees</span>
                       </div>
                       <div>
                         <span className="text-gray-400">Price:</span>
-                        <span className="text-white ml-2">{formData.price} XRP</span>
+                        <span className="text-white ml-2">{formData.ticketPrice} XRP</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Charity:</span>
-                        <span className="text-green-400 ml-2">{formData.charityPercentage}%</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Agenda Items:</span>
-                        <span className="text-white ml-2">{formData.agenda.length}</span>
+                        <span className="text-gray-400">Cause:</span>
+                        <span className="text-green-400 ml-2">
+                          {mockCauses.find(c => c.id.toString() === formData.causeId)?.title || 'Not selected'}
+                        </span>
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                  <h4 className="text-blue-400 font-medium mb-2">NFT Collection Creation</h4>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• An NFT collection will be created for this event</li>
+                    <li>• Each ticket purchase will mint an NFT from this collection</li>
+                    <li>• The collection will be linked to your wallet address</li>
+                    <li>• Collection metadata will include event details</li>
+                  </ul>
                 </div>
 
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
                   <h4 className="text-yellow-400 font-medium mb-2">Before You Submit</h4>
                   <ul className="text-sm text-gray-300 space-y-1">
                     <li>• Ensure all information is accurate and complete</li>
-                    <li>• Your event will be reviewed before going live</li>
-                    <li>• Escrow contracts will be automatically created</li>
+                    <li>• NFT collection creation requires wallet signature</li>
+                    <li>• Event will be created only after successful NFT collection creation</li>
                     <li>• You can edit details until the first ticket is sold</li>
                   </ul>
                 </div>
@@ -512,7 +381,7 @@ const CreateEvent = () => {
                 Previous
               </button>
               
-              {currentStep < 4 ? (
+              {currentStep < 3 ? (
                 <button
                   type="button"
                   onClick={nextStep}
@@ -523,9 +392,17 @@ const CreateEvent = () => {
               ) : (
                 <button
                   type="submit"
-                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200 font-semibold"
+                  disabled={isSubmitting}
+                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  Create Event
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Creating Event...</span>
+                    </>
+                  ) : (
+                    <span>Create Event</span>
+                  )}
                 </button>
               )}
             </div>
