@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { X, CreditCard, Gift, Loader, Check, AlertCircle } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
+import { useAuth } from '../contexts/AuthContext';
+import { TicketService } from '../services/tickets.service';
 import { IEventWithCauseId } from '../models/events.model';
+import { ServiceErrorCode } from '../services/service.result';
+import { useToast } from '../components/ToastContainer';
 
 interface PurchaseModalProps {
   isOpen: boolean;
@@ -11,38 +15,105 @@ interface PurchaseModalProps {
 }
 
 const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, type }) => {
-  const { sendPayment, mintNFT, balance } = useWallet();
+  const { sendPayment, mintNFT, balance, address } = useWallet();
+  const { user } = useAuth();
+  const { showSuccess, showError, showInfo } = useToast();
   const [step, setStep] = useState<'confirm' | 'processing' | 'success'>('confirm');
   const [amount, setAmount] = useState(type === 'ticket' ? event.ticketPrice : 10);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionId, setTransactionId] = useState('');
   const [nftId, setNftId] = useState('');
+  const [ticketId, setTicketId] = useState<number | null>(null);
 
   if (!isOpen) return null;
 
   const handlePurchase = async () => {
+    if (!user?.walletAddress || !address) {
+      showError('Wallet Required', 'Please connect your wallet first');
+      return;
+    }
+
     setIsProcessing(true);
     setStep('processing');
 
     try {
-      // Simulate payment processing
-      const txId = await sendPayment('destination_address', amount);
-      setTransactionId(txId);
-
-      // If purchasing a ticket, mint NFT
       if (type === 'ticket') {
-        const nftTokenId = await mintNFT({
-          event: event.title,
-          eventId: event.id.toString(),
-          purchaseDate: new Date().toISOString(),
-          type: 'event_ticket'
-        });
+        showInfo('Checking Availability', 'Verifying ticket availability...');
+        const availabilityResult = await TicketService.getEventAvailability(event.id!);
+        
+        if (availabilityResult.errorCode !== ServiceErrorCode.success || !availabilityResult.result) {
+          throw new Error('Failed to check event availability');
+        }
+
+        if (availabilityResult.result.available <= 0) {
+          throw new Error('Event is full. No tickets available.');
+        }
+
+        if (availabilityResult.result.price !== amount) {
+          throw new Error(`Ticket price is ${availabilityResult.result.price} XRP, not ${amount} XRP`);
+        }
+
+        showInfo('Creating Ticket', 'Creating ticket record in database...');
+        const ticketResult = await TicketService.createTicket(
+          event.id!,
+          user.walletAddress,
+          amount
+        );
+
+        if (ticketResult.errorCode !== ServiceErrorCode.success || !ticketResult.result) {
+          throw new Error('Failed to create ticket. Event might be full or invalid price.');
+        }
+
+        setTicketId(ticketResult.result.id);
+
+        showInfo('Processing Payment', 'Sending payment to charitable cause...');
+        const causeAddress = event.cause?.addressDestination || 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh'; // Adresse de la cause ou adresse de test par défaut
+
+        if (!event.cause?.addressDestination) {
+          console.warn('⚠️ No cause address found, using default test address');
+        }
+        
+        const paymentTxId = await sendPayment(causeAddress, amount);
+        setTransactionId(paymentTxId);
+
+        showInfo('Minting NFT', 'Creating NFT ticket for your wallet...');
+        const nftMetadata = {
+          t: 'tkt',
+          eid: event.id,
+          n: event.title.substring(0, 20),
+          d: event.date.substring(0, 10),
+          l: `${event.city}, ${event.country}`.substring(0, 25),
+          i: (event.imageUrl || 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image').substring(0, 50),
+          p: event.ticketPrice,
+          tid: ticketResult.result.id 
+        };
+
+        const nftTokenId = await mintNFT(nftMetadata);
         setNftId(nftTokenId);
+
+        showInfo('Finalizing Ticket', 'Updating ticket with NFT information...');
+        const updateResult = await TicketService.updateTicketWithNFT(
+          ticketResult.result.id,
+          nftTokenId,
+          paymentTxId
+        );
+
+        if (updateResult.errorCode !== ServiceErrorCode.success) {
+          console.warn('⚠️ Failed to update ticket with NFT info, but ticket was created');
+        }
+
+        showSuccess('Ticket Purchased!', 'Your NFT ticket has been created successfully!');
+      } else {
+        showInfo('Processing Donation', 'Sending donation to charitable cause...');
+        const causeAddress = event.cause?.addressDestination || 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh';
+        const donationTxId = await sendPayment(causeAddress, amount);
+        setTransactionId(donationTxId);
+        showSuccess('Donation Successful!', 'Your donation has been sent to the charitable cause!');
       }
 
       setStep('success');
     } catch (error) {
-      console.error('Purchase failed:', error);
+      showError('Purchase Failed', error instanceof Error ? error.message : 'An unexpected error occurred');
       setStep('confirm');
     } finally {
       setIsProcessing(false);
@@ -57,8 +128,6 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
     setNftId('');
   };
 
-  // Calculate charity amount (30% of the total amount)
-  const charityAmount = Math.round(amount * 0.3);
   const isInsufficientBalance = amount > balance;
 
   return (
@@ -121,13 +190,10 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">To {event.cause?.title || 'Charitable Cause'}</span>
-                  <span className="text-green-400 font-medium">{charityAmount} XRP</span>
+                  <span className="text-green-400 font-medium">{amount} XRP</span>
                 </div>
-                <div className="border-t border-white/10 pt-2 mt-2">
-                  <div className="flex justify-between">
-                    <span className="text-white font-medium">Total</span>
-                    <span className="text-white font-bold">{amount} XRP</span>
-                  </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  100% of your payment goes directly to the charitable cause
                 </div>
               </div>
             </div>
@@ -214,6 +280,12 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
                   <span className="text-gray-300">Transaction ID</span>
                   <span className="text-white font-mono text-xs">{transactionId}</span>
                 </div>
+                {type === 'ticket' && ticketId && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Ticket ID</span>
+                    <span className="text-white font-mono text-xs">#{ticketId}</span>
+                  </div>
+                )}
                 {type === 'ticket' && (
                   <div className="flex justify-between">
                     <span className="text-gray-300">NFT Token ID</span>
@@ -226,7 +298,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">To {event.cause?.title || 'Charitable Cause'}</span>
-                  <span className="text-green-400 font-medium">{charityAmount} XRP</span>
+                  <span className="text-green-400 font-medium">{amount} XRP</span>
                 </div>
               </div>
             </div>

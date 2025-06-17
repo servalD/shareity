@@ -19,7 +19,6 @@ const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => {
     setConnectionStep('connecting');
     
     try {
-      // Simulate wallet connection process
       await new Promise(resolve => setTimeout(resolve, 2000));
       await connectWallet();
       setConnectionStep('success');
@@ -30,7 +29,6 @@ const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => {
         setIsConnecting(false);
       }, 1500);
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
       setIsConnecting(false);
       setConnectionStep('select');
     }

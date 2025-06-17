@@ -6,13 +6,11 @@ import { CauseService } from '../services/causes.service';
 import { PinataService } from '../services/pinata.service';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
-import ToastContainer, { useToast } from '../components/ToastContainer';
 
 const CreateCause = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { isConnected, mintNFT } = useWallet();
-  const { toasts, showSuccess, showError, removeToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -35,21 +33,18 @@ const CreateCause = () => {
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Vérifier le type de fichier
       if (!file.type.startsWith('image/')) {
-        showError('Invalid File Type', 'Please select an image file');
+        alert('Please select an image file');
         return;
       }
       
-      // Vérifier la taille (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        showError('File Too Large', 'Image size must be less than 5MB');
+        alert('Image size must be less than 5MB');
         return;
       }
 
       setSelectedImage(file);
       
-      // Créer un aperçu
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -63,12 +58,12 @@ const CreateCause = () => {
     const file = event.dataTransfer.files[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        showError('Invalid File Type', 'Please select an image file');
+        alert('Please select an image file');
         return;
       }
       
       if (file.size > 5 * 1024 * 1024) {
-        showError('File Too Large', 'Image size must be less than 5MB');
+        alert('Image size must be less than 5MB');
         return;
       }
 
@@ -98,12 +93,12 @@ const CreateCause = () => {
     e.preventDefault();
 
     if (!isAuthenticated) {
-      showError('Authentication Required', 'Please connect your DID first');
+      alert('Please connect your DID first');
       return;
     }
 
     if (!isConnected) {
-      showError('Wallet Required', 'Please connect your wallet first');
+      alert('Please connect your wallet first');
       return;
     }
 
@@ -112,7 +107,6 @@ const CreateCause = () => {
     try {
       let imageUrl = '';
       
-      // Upload image to Pinata if selected
       if (selectedImage) {
         setIsUploading(true);
         try {
@@ -120,7 +114,7 @@ const CreateCause = () => {
           console.log('✅ Image uploaded to Pinata:', imageUrl);
         } catch (error) {
           console.error('❌ Failed to upload image:', error);
-          showError('Upload Failed', 'Failed to upload image. Please try again.');
+          alert('Failed to upload image. Please try again.');
           setIsUploading(false);
           setIsLoading(false);
           return;
@@ -129,83 +123,59 @@ const CreateCause = () => {
         }
       }
 
-      // Convertir les données au format ICause
       const causeData: ICause = {
         title: formData.title,
         description: formData.description,
         location: formData.location,
         addressDestination: formData.addressDestination,
         imageUrl: imageUrl,
-        raisedAmount: '0', // Montant initial
+        raisedAmount: '0', 
         goal: Number(formData.goal),
         supporters: formData.supporters,
         isClosed: formData.isClosed
       };
 
-      console.log('Preparing cause data:', causeData);
+      console.log('Creating cause:', causeData);
 
-      // Créer un NFT pour la cause d'abord
+      const result = await CauseService.createCause(causeData);
+
+      if (result.errorCode !== 0) {
+        throw new Error('Failed to create cause');
+      }
+
+      const createdCause = result.result;
+      if (!createdCause) {
+        throw new Error('No cause data returned from server');
+      }
+
+      console.log('✅ Cause created successfully:', createdCause);
+
       const nftMetadata = {
-        name: causeData.title,
+        name: createdCause.title,
         image: imageUrl || ''
       };
 
       console.log('🎨 Minting NFT for cause:', nftMetadata);
-      
-      try {
-        const nftTxId = await mintNFT(nftMetadata);
-        console.log('✅ NFT minted successfully, transaction ID:', nftTxId);
+      const nftTxId = await mintNFT(nftMetadata);
+      console.log('✅ NFT minted successfully, transaction ID:', nftTxId);
 
-        // Seulement après que le NFT soit créé avec succès, créer la cause en base de données
-        console.log('Creating cause in database...');
-        const result = await CauseService.createCause(causeData);
+      alert(`Cause created successfully! 
+      🎉 Cause ID: ${createdCause.id}
+      🎨 NFT Transaction: ${nftTxId}
+      ${imageUrl ? '🖼️ Image uploaded to IPFS' : ''}
+      Your cause will be reviewed before going live.`);
 
-        if (result.errorCode !== 0) { // 0 corresponds to ServiceErrorCode.success
-          throw new Error('Failed to create cause in database');
-        }
-
-        const createdCause = result.result;
-        if (!createdCause) {
-          throw new Error('No cause data returned from server');
-        }
-
-        console.log('✅ Cause created successfully in database:', createdCause);
-
-        // Afficher le succès avec les détails
-        showSuccess(
-          'Cause Created Successfully!',
-          `Cause ID: ${createdCause.id} • NFT: ${nftTxId.substring(0, 8)}...${imageUrl ? ' • Image uploaded to IPFS' : ''}`
-        );
-
-        // Rediriger après un délai pour laisser le temps de voir le toast
-        setTimeout(() => {
-          navigate('/causes');
-        }, 2000);
-
-      } catch (nftError) {
-        console.error('❌ NFT minting failed:', nftError);
-        
-        // Si le NFT échoue, ne pas créer la cause en base de données
-        let nftErrorMessage = 'Failed to create NFT on blockchain. Please try again.';
-        if (nftError instanceof Error) {
-          nftErrorMessage = nftError.message;
-        }
-        
-        showError('NFT Creation Failed', nftErrorMessage);
-        setIsLoading(false);
-        return;
-      }
-
+      navigate('/causes');
     } catch (error) {
-      console.error('❌ Error in cause creation process:', error);
+      console.error('❌ Error creating cause:', error);
 
       // Afficher une erreur plus détaillée
       let errorMessage = 'Failed to create cause. Please try again.';
       if (error instanceof Error) {
-        errorMessage = error.message;
+        errorMessage = `Error: ${error.message}`;
       }
 
-      showError('Creation Failed', errorMessage);
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -213,9 +183,6 @@ const CreateCause = () => {
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
-      {/* Toast Container */}
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
-      
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

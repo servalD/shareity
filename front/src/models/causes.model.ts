@@ -9,6 +9,7 @@ export interface ICause {
     goal: number;
     supporters: number;
     isClosed: boolean;
+    eventsCount?: number;
 }
 
 export type ICauseId = ICause & { id: number };

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Users, TrendingUp, Search, MapPin, Calendar, Target, Plus, Image as ImageIcon } from 'lucide-react';
+import { Heart, Users, TrendingUp, Search, MapPin, Target, Plus, Image as ImageIcon } from 'lucide-react';
 import { ICauseId } from '../models/causes.model';
 import { CauseService } from '../services/causes.service';
 import { ServiceErrorCode } from '../services/service.result';
@@ -44,11 +44,10 @@ const Causes = () => {
       goal: cause.goal || 0,
       supporters: cause.supporters || 0,
       isClosed: cause.isClosed || false,
-      events: Math.floor(Math.random() * 15) + 1 // Nombre aléatoire entre 1 et 15
+      events: cause.eventsCount || 0
     };
   };
 
-  // Chargement des causes depuis le service
   useEffect(() => {
     const fetchCauses = async () => {
       setLoading(true);
@@ -61,11 +60,9 @@ const Causes = () => {
           const convertedCauses = result.result.map(convertCauseToDisplay);
           setCauses(convertedCauses);
         } else {
-          console.warn('Failed to fetch causes from service');
           setCauses([]);
         }
       } catch (err) {
-        console.error('Error fetching causes:', err);
         setError('Failed to load causes');
         setCauses([]);
       } finally {
@@ -78,11 +75,8 @@ const Causes = () => {
 
   const handleDonationSuccess = async (causeId: string, amount: number) => {
     try {
-      console.log('🔄 Updating cause after donation:', { causeId, amount });
-      
       const currentCause = causes.find(c => c.id === causeId);
       if (!currentCause) {
-        console.error('Cause not found for update:', causeId);
         return;
       }
 
@@ -102,12 +96,8 @@ const Causes = () => {
               : cause
           )
         );
-        console.log('✅ Cause updated successfully');
-      } else {
-        console.error('❌ Failed to update cause:', updateResult);
       }
     } catch (error) {
-      console.error('❌ Error updating cause:', error);
     }
   };
 
@@ -159,7 +149,6 @@ const Causes = () => {
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-white mb-4">Support Charitable Causes</h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
@@ -167,10 +156,8 @@ const Causes = () => {
           </p>
         </div>
 
-        {/* Filters */}
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
@@ -182,7 +169,6 @@ const Causes = () => {
               />
             </div>
 
-            {/* Sort */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -194,7 +180,6 @@ const Causes = () => {
               <option value="newest" className="bg-slate-800">Newest</option>
             </select>
 
-            {/* Sort Order */}
             <div className="flex">
               <button
                 onClick={() => setSortOrder('desc')}
@@ -220,7 +205,6 @@ const Causes = () => {
           </div>
         </div>
 
-        {/* Create Cause CTA */}
         <div className="bg-gradient-to-r from-green-600/20 to-teal-600/20 backdrop-blur-sm rounded-2xl p-6 border border-green-500/20 mb-8">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="mb-4 md:mb-0">
@@ -237,7 +221,6 @@ const Causes = () => {
           </div>
         </div>
 
-        {/* Results Count */}
         <div className="mb-6">
           <p className="text-gray-400">
             {loading ? 'Loading causes...' : `Showing ${sortedCauses.length} of ${causes.length} causes`}
@@ -245,10 +228,8 @@ const Causes = () => {
           </p>
         </div>
 
-        {/* Causes Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {loading ? (
-            // Loading skeleton
             Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={`skeleton-${index}`}
@@ -273,7 +254,6 @@ const Causes = () => {
                   key={cause.id}
                   className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-all duration-300 group"
                 >
-                  {/* Cause Image */}
                   <div className="relative h-48 overflow-hidden">
                     {cause.imageUrl ? (
                       <img
@@ -297,7 +277,6 @@ const Causes = () => {
                     </div>
                   </div>
 
-                  {/* Cause Content */}
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm text-gray-400">Cause #{cause.id}</span>
@@ -315,7 +294,6 @@ const Causes = () => {
                       {cause.description}
                     </p>
 
-                    {/* Cause Details */}
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center text-gray-300 text-sm">
                         <MapPin className="w-4 h-4 mr-2 text-green-400" />
@@ -327,7 +305,6 @@ const Causes = () => {
                       </div>
                     </div>
 
-                    {/* Progress */}
                     <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-400 mb-2">
                         <span>Progress</span>
@@ -349,7 +326,6 @@ const Causes = () => {
                       </div>
                     </div>
 
-                    {/* Stats */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center text-gray-300 text-sm">
                         <Users className="w-4 h-4 mr-1 text-blue-400" />
@@ -361,7 +337,6 @@ const Causes = () => {
                       </div>
                     </div>
 
-                    {/* CTA */}
                     <button
                       onClick={() => handleOpenDonationModal(cause)}
                       disabled={cause.isClosed}
@@ -380,7 +355,6 @@ const Causes = () => {
           )}
         </div>
 
-        {/* Empty State */}
         {!loading && sortedCauses.length === 0 && (
           <div className="text-center py-16">
             <Heart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -398,7 +372,6 @@ const Causes = () => {
         )}
       </div>
 
-      {/* Donation Modal */}
       {donationModal.cause && (
         <DonationModal
           isOpen={donationModal.isOpen}

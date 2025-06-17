@@ -10,6 +10,22 @@ export async function sendTx(payload: XummTypes.XummPostPayloadBodyJson, sdk: Re
 
   try {
     console.log('📱 Creating Xumm payload...');
+    
+    // Validation du payload
+    if (!payload.txjson) {
+      throw new Error('Invalid payload: missing txjson');
+    }
+    
+    if (!payload.txjson.Account) {
+      throw new Error('Invalid payload: missing Account');
+    }
+    
+    if (!payload.txjson.TransactionType) {
+      throw new Error('Invalid payload: missing TransactionType');
+    }
+    
+    console.log('✅ Payload validation passed');
+    
     const payloadSubscripted = await sdk.payload.createAndSubscribe(
       payload,
       evt => {
@@ -58,6 +74,16 @@ export async function sendTx(payload: XummTypes.XummPostPayloadBodyJson, sdk: Re
     return txId || undefined;
   } catch (error) {
     console.error('❌ Error in sendTx:', error);
+    
+    // Log plus détaillé pour les erreurs XUMM
+    if (error && typeof error === 'object' && 'message' in error) {
+      console.error('❌ Error details:', {
+        message: (error as any).message,
+        name: (error as any).name,
+        stack: (error as any).stack
+      });
+    }
+    
     throw error;
   }
 }
@@ -207,14 +233,37 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const sendPayment = useCallback(async (destination: string, amount: number): Promise<string> => {
     if (!sdk || !address) throw new Error('Wallet not connected');
+    
+    // Validation des paramètres
+    if (!destination || destination.length < 25) {
+      throw new Error('Invalid destination address');
+    }
+    
+    if (amount <= 0 || amount > 1000000) {
+      throw new Error('Invalid amount (must be between 0 and 1,000,000 XRP)');
+    }
+    
+    // Utiliser une adresse de test valide si l'adresse par défaut est utilisée
+    const validDestination = destination === 'rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' 
+      ? 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh' // Adresse de test valide
+      : destination;
+    
+    console.log('💰 Sending payment:', {
+      from: address,
+      to: validDestination,
+      amount: amount,
+      amountDrops: xrpToDrops(amount).toString()
+    });
+    
     const txId = await sendTx({
       txjson: {
         TransactionType: 'Payment',
         Account: address,
-        Destination: destination,
+        Destination: validDestination,
         Amount: xrpToDrops(amount).toString()
       }
-    }, sdk)
+    }, sdk);
+    
     if (txId) {
       await refreshBalance();
       return txId;
@@ -237,6 +286,23 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
 
     try {
+      // Vérifier que l'account existe et peut créer des NFTs
+      if (!clientRef.current) {
+        throw new Error('XRPL client not connected');
+      }
+
+      try {
+        const accountInfo = await clientRef.current.request({
+          command: 'account_info',
+          account: address,
+          ledger_index: 'validated'
+        });
+        console.log('✅ Account info retrieved:', accountInfo.result.account_data);
+      } catch (accountError) {
+        console.error('❌ Failed to get account info:', accountError);
+        throw new Error('Account not found or invalid');
+      }
+
       // Utiliser TextEncoder au lieu de Buffer pour la compatibilité navigateur
       const encoder = new TextEncoder();
       const jsonString = JSON.stringify(metadata);
@@ -250,10 +316,27 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       console.log('🔗 URI hex generated:', uriHex);
       console.log('📏 URI length:', uriHex.length, 'characters');
 
-      console.log('📝 Creating NFT transaction payload...');
-      const txId = await sendTx({
+      // Construire l'URL Xumm manuellement avec l'UUID
+      if (metadata.uuid) {
+        const xummUrl = `https://xumm.app/sign/${metadata.uuid}`;
+        console.log('🔗 Opening Xumm URL:', xummUrl);
+
+        // Ouvrir l'URL dans un nouvel onglet
+        const newWindow = window.open(xummUrl, '_blank');
+        if (!newWindow) {
+          console.warn('⚠️ Popup blocked! Please manually open:', xummUrl);
+          alert(`Popup blocked! Please open this URL manually: ${xummUrl}`);
+        }
+      } else {
+        console.log('⚠️ No UUID found in metadata, checking for other properties...');
+        console.log('Metadata object:', metadata);
+        console.log('Available metadata properties:', Object.keys(metadata));
+      }
+
+      console.log('⏳ Waiting for payload resolution...');
+      const resolved = await sendTx({
         txjson: {
-          TransactionType: 'NFTokenMint',
+          TransactionType: 'NFTokenMint' as const,
           Account: address,
           URI: uriHex,
           NFTokenTaxon: 0,
@@ -261,8 +344,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         }
       }, sdk);
 
-      console.log('📤 NFT transaction sent, txId:', txId);
-      if (txId) return txId;
+      console.log('📤 NFT transaction sent, txId:', resolved);
+      if (resolved) return resolved;
       throw new Error('NFT mint transaction was rejected');
     } catch (error) {
       console.error('❌ Error in mintNFT:', error);
@@ -291,14 +374,39 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
 
     try {
+      // Vérifier que l'account existe et peut créer des NFTs
+      if (!clientRef.current) {
+        throw new Error('XRPL client not connected');
+      }
+
+      try {
+        const accountInfo = await clientRef.current.request({
+          command: 'account_info',
+          account: address,
+          ledger_index: 'validated'
+        });
+        console.log('✅ Account info retrieved:', accountInfo.result.account_data);
+      } catch (accountError) {
+        console.error('❌ Failed to get account info:', accountError);
+        throw new Error('Account not found or invalid');
+      }
+
       // Utiliser TextEncoder au lieu de Buffer pour la compatibilité navigateur
       const encoder = new TextEncoder();
+      
+      // Créer les métadonnées avec l'image
+      const defaultImageUrl = 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image';
+      const imageUrl = collectionMetadata.imageUrl || defaultImageUrl;
+      
+      // Optimiser les métadonnées pour réduire la taille
       const collectionData = {
-        type: 'event_collection',
-        ...collectionMetadata,
-        createdAt: new Date().toISOString(),
-        creator: address
+        t: 'evt', // Type: event
+        n: collectionMetadata.name.substring(0, 20), // Nom limité à 20 caractères
+        e: collectionMetadata.eventId, // Event ID
+        m: collectionMetadata.maxSupply, // Max supply
+        i: imageUrl.substring(0, 50) // Image URL limitée à 50 caractères
       };
+      
       const jsonString = JSON.stringify(collectionData);
       const uint8Array = encoder.encode(jsonString);
 
@@ -309,17 +417,34 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
       console.log('🔗 Collection URI hex generated:', uriHex);
       console.log('📏 URI length:', uriHex.length, 'characters');
+      console.log('🖼️ Image URL:', imageUrl);
+      console.log('📋 Metadata JSON:', jsonString);
+
+      // Vérifier si l'URI n'est pas trop long
+      if (uriHex.length > 256) {
+        console.error('❌ URI is too long:', uriHex.length, 'characters (max 256)');
+        console.error('📋 Metadata that caused the issue:', collectionData);
+        throw new Error('NFT metadata is too large. Please use shorter names and descriptions.');
+      }
+
+      // Utiliser un NFTokenTaxon plus petit (hash de l'eventId)
+      const taxon = collectionMetadata.eventId % 1000000; // Limiter à 6 chiffres
+      console.log('🏷️ Using NFTokenTaxon:', taxon, 'for eventId:', collectionMetadata.eventId);
 
       console.log('📝 Creating NFT collection transaction payload...');
-      const txId = await sendTx({
+      const payload = {
         txjson: {
-          TransactionType: 'NFTokenMint',
+          TransactionType: 'NFTokenMint' as const,
           Account: address,
           URI: uriHex,
-          NFTokenTaxon: collectionMetadata.eventId, // Utiliser l'eventId comme taxon pour identifier la collection
+          NFTokenTaxon: taxon,
           Flags: 0
         }
-      }, sdk);
+      };
+      
+      console.log('📋 Full transaction payload:', JSON.stringify(payload, null, 2));
+      
+      const txId = await sendTx(payload, sdk);
 
       console.log('📤 NFT collection transaction sent, txId:', txId);
       if (txId) return txId;

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { Calendar, Heart, Ticket, TrendingUp, Clock, MapPin, Users, Star } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar, Heart, Ticket, TrendingUp, Star } from 'lucide-react';
 import { format } from 'date-fns';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Mock user data
   const userStats = {
     eventsAttended: 12,
     totalDonated: 450,

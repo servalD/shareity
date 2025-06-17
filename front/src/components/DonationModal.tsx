@@ -9,9 +9,9 @@ interface DonationModalProps {
     id: string;
     title: string;
     organization: string;
-    address?: string; // Adresse XRP de la cause (optionnelle)
+    address?: string;
   };
-  onDonationSuccess?: (causeId: string, amount: number) => void; // Callback pour la mise à jour
+  onDonationSuccess?: (causeId: string, amount: number) => void;
 }
 
 const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, onDonationSuccess }) => {
@@ -49,22 +49,17 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, o
     setError(null);
 
     try {
-      // Utiliser l'adresse de la cause si elle existe, sinon l'adresse saisie
       const destinationAddress = cause.address || address;
-      console.log('🎁 Starting donation:', { amount, address: destinationAddress, cause: cause.title });
 
       const txId = await sendPayment(destinationAddress, amount);
       setTransactionId(txId);
       setStep('success');
 
-      // Appeler le callback pour informer le parent de la donation réussie
       if (onDonationSuccess) {
         onDonationSuccess(cause.id, amount);
       }
 
-      console.log('✅ Donation successful, txId:', txId);
     } catch (error) {
-      console.error('❌ Donation failed:', error);
       setError(error instanceof Error ? error.message : 'Failed to process donation');
       setStep('form');
     } finally {

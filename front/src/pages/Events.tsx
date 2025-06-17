@@ -1,24 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Users, Heart, Filter, Search, Clock, Star } from 'lucide-react';
+import { Calendar, MapPin, Users, Heart, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { EventService } from '../services/events.service';
 import { IEventWithCauseId } from '../models/events.model';
 import { ServiceErrorCode } from '../services/service.result';
+import { useToast } from '../components/ToastContainer';
 
 const Events = () => {
+  const { showError } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedCause, setSelectedCause] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [events, setEvents] = useState<IEventWithCauseId[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const categories = ['all', 'conference', 'workshop', 'charity', 'sports', 'music', 'education'];
-  const causes = ['all', 'education', 'healthcare', 'environment', 'poverty', 'disaster-relief'];
-
-  // Charger les événements depuis la base de données
   useEffect(() => {
     const loadEvents = async () => {
       try {
@@ -26,12 +22,27 @@ const Events = () => {
         const result = await EventService.getAllEvents();
         
         if (result.errorCode === ServiceErrorCode.success && result.result) {
+          console.log('✅ Events loaded:', result.result);
+          console.log('🔍 Checking imageUrl for events:');
+          result.result.forEach((event, index) => {
+            console.log(`Event ${index + 1}:`, {
+              id: event.id,
+              title: event.title,
+              imageUrl: event.imageUrl,
+              hasImage: !!event.imageUrl,
+              causeAddress: event.cause?.addressDestination
+            });
+          });
           setEvents(result.result);
         } else {
-          setError('Failed to load events');
+          const errorMsg = 'Failed to load events';
+          setError(errorMsg);
+          showError('Loading Error', errorMsg);
         }
       } catch (err) {
-        setError('An error occurred while loading events');
+        const errorMsg = 'An error occurred while loading events';
+        setError(errorMsg);
+        showError('Loading Error', errorMsg);
         console.error('Error loading events:', err);
       } finally {
         setLoading(false);
@@ -39,16 +50,13 @@ const Events = () => {
     };
 
     loadEvents();
-  }, []);
+  }, [showError]);
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || event.title.toLowerCase().includes(selectedCategory);
-    const matchesCause = selectedCause === 'all' || 
-                        (event.cause && event.cause.title.toLowerCase().includes(selectedCause));
     
-    return matchesSearch && matchesCategory && matchesCause;
+    return matchesSearch;
   });
 
   const sortedEvents = [...filteredEvents].sort((a, b) => {
@@ -119,7 +127,7 @@ const Events = () => {
 
         {/* Filters */}
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -131,32 +139,6 @@ const Events = () => {
                 className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
-            {/* Category Filter */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {categories.map(category => (
-                <option key={category} value={category} className="bg-slate-800">
-                  {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
-                </option>
-              ))}
-            </select>
-
-            {/* Cause Filter */}
-            <select
-              value={selectedCause}
-              onChange={(e) => setSelectedCause(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {causes.map(cause => (
-                <option key={cause} value={cause} className="bg-slate-800">
-                  {cause === 'all' ? 'All Causes' : cause.charAt(0).toUpperCase() + cause.slice(1).replace('-', ' ')}
-                </option>
-              ))}
-            </select>
 
             {/* Sort */}
             <select
@@ -188,9 +170,16 @@ const Events = () => {
               {/* Event Image */}
               <div className="relative h-48 overflow-hidden">
                 <img
-                  src={event.imageUrl}
+                  src={event.imageUrl || 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image'}
                   alt={event.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    console.warn('❌ Failed to load image for event:', event.title, 'URL:', event.imageUrl);
+                    e.currentTarget.src = 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image';
+                  }}
+                  onLoad={() => {
+                    console.log('✅ Image loaded successfully for event:', event.title, 'URL:', event.imageUrl);
+                  }}
                 />
                 <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
                   Event

@@ -13,7 +13,6 @@ export class EventService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -26,7 +25,6 @@ export class EventService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -39,7 +37,6 @@ export class EventService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -52,7 +49,6 @@ export class EventService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -65,7 +61,6 @@ export class EventService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -78,7 +73,6 @@ export class EventService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }

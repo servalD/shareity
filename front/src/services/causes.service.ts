@@ -13,7 +13,6 @@ export class CauseService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -26,7 +25,6 @@ export class CauseService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -39,7 +37,6 @@ export class CauseService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err);
             return ServiceResult.failed();
         }
     }
@@ -52,10 +49,19 @@ export class CauseService {
             }
             return ServiceResult.failed();
         } catch(err) {
-            console.log(err)
             return ServiceResult.failed();
         }
     }
 
-
+    static async getCauseWithEventCount(id: number): Promise<ServiceResult<ICauseId>> {
+        try {
+            const res = await axios.get(`${ApiService.baseURL}/causes/${id}/events-count`);
+            if (res.status === 200) {
+                return ServiceResult.success<ICauseId>(res.data);
+            }
+            return ServiceResult.failed();
+        } catch(err) {
+            return ServiceResult.failed();
+        }
+    }
 }

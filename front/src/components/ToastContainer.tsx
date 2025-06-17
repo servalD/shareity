@@ -32,7 +32,6 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemoveToast }
   );
 };
 
-// Hook personnalisé pour gérer les toasts
 export const useToast = () => {
   const [toasts, setToasts] = useState<ToastData[]>([]);
 

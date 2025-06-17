@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Users, DollarSign, TrendingUp, Plus, Edit, Eye, BarChart3, Heart, Clock } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Plus, Edit, Eye, BarChart3, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 
 const CreatorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Mock creator data
   const creatorStats = {
     totalEvents: 8,
     totalRevenue: 12500,

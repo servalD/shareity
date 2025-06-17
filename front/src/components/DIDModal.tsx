@@ -43,7 +43,6 @@ const DIDModal: React.FC<DIDModalProps> = ({ isOpen, onClose }) => {
       const url = await startKYC();
       window.open(url, '_blank');
     } catch {
-      // error handled in hook
     } finally {
       setIsLoading(false);
     }
@@ -52,13 +51,10 @@ const DIDModal: React.FC<DIDModalProps> = ({ isOpen, onClose }) => {
   const handleSetDID = async () => {
     setIsLoading(true);
     try {
-      // fetch VC URI from Fractal
       const vcUri = await fetchDID();
-      // submit DIDSet on XRPL
       await setDID(vcUri);
       setStep('verify');
     } catch {
-      // errors from hooks
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +67,6 @@ const DIDModal: React.FC<DIDModalProps> = ({ isOpen, onClose }) => {
         await verify(didUri);
       }
     } catch {
-      // errors from hook
     } finally {
       setIsLoading(false);
     }

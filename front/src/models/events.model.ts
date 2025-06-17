@@ -8,7 +8,7 @@ export interface IEvent {
     maxAttendees: number;
     attendees: number;
     ticketPrice: number;
-    imageUrl: string;
+    imageUrl?: string;
     causeId: number;
 }
 
@@ -17,6 +17,7 @@ export interface IEventWithCause extends IEvent {
         id: number;
         title: string;
         description: string;
+        addressDestination: string;
     };
 }
 

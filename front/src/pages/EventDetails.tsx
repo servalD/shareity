@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, Users, Heart, Clock, Star, Share2, Bookmark, ArrowLeft, CreditCard, Gift } from 'lucide-react';
+import { Calendar, MapPin, Users, Heart, Share2, Bookmark, ArrowLeft, CreditCard, Gift } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
@@ -19,7 +19,6 @@ const EventDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Charger l'événement depuis la base de données
   useEffect(() => {
     const loadEvent = async () => {
       if (!id) {
@@ -33,6 +32,9 @@ const EventDetails = () => {
         const result = await EventService.getEventById(parseInt(id));
         
         if (result.errorCode === ServiceErrorCode.success && result.result) {
+          console.log('✅ Event loaded:', result.result);
+          console.log('🔍 Event imageUrl:', result.result.imageUrl);
+          console.log('💰 Cause addressDestination:', result.result.cause?.addressDestination);
           setEvent(result.result);
         } else {
           setError('Event not found');
@@ -120,9 +122,16 @@ const EventDetails = () => {
             {/* Hero Image */}
             <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden">
               <img
-                src={event.imageUrl}
+                src={event.imageUrl || 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image'}
                 alt={event.title}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.warn('❌ Failed to load image for event:', event.title, 'URL:', event.imageUrl);
+                  e.currentTarget.src = 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image';
+                }}
+                onLoad={() => {
+                  console.log('✅ Image loaded successfully for event:', event.title, 'URL:', event.imageUrl);
+                }}
               />
               <div className="absolute top-4 right-4 flex space-x-2">
                 <button className="bg-black/50 backdrop-blur-sm text-white p-2 rounded-full hover:bg-black/70 transition-colors">
@@ -239,7 +248,7 @@ const EventDetails = () => {
               </div>
 
               <div className="text-center text-sm text-gray-400 mb-4">
-                Secure payment via XRPL • NFT ticket included
+                Secure payment via XRPL • NFT ticket included • 100% to cause
               </div>
 
               {/* Fund Distribution */}
@@ -247,16 +256,11 @@ const EventDetails = () => {
                 <h4 className="font-semibold text-white mb-3">Fund Distribution</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Venue & Operations</span>
-                    <span className="text-white">40%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Platform & Services</span>
-                    <span className="text-white">30%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Charitable Cause</span>
-                    <span className="text-green-400 font-medium">30%</span>
+                    <span className="text-green-400 font-medium">100%</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    All proceeds directly support the charitable cause
                   </div>
                 </div>
               </div>
@@ -281,7 +285,7 @@ const EventDetails = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-400">To Charity</span>
                   <span className="text-green-400 font-medium">
-                    {Math.round(event.attendees * event.ticketPrice * 0.3)} XRP
+                    {event.attendees * event.ticketPrice} XRP
                   </span>
                 </div>
               </div>

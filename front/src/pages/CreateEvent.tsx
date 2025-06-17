@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Users, DollarSign, Heart, Clock, Image, FileText, Settings } from 'lucide-react';
+import { Calendar, FileText, Settings, Upload, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { EventService } from '../services/events.service';
+import { CauseService } from '../services/causes.service';
+import { PinataService } from '../services/pinata.service';
 import { IEvent } from '../models/events.model';
+import { ICauseId } from '../models/causes.model';
 import { ServiceErrorCode } from '../services/service.result';
+import { useToast } from '../components/ToastContainer';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { isConnected, createNFTCollection } = useWallet();
+  const { showSuccess, showError, showInfo } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingCauses, setIsLoadingCauses] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [causes, setCauses] = useState<ICauseId[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,55 +36,157 @@ const CreateEvent = () => {
     causeId: ''
   });
 
-  const categories = [
-    'conference', 'workshop', 'charity', 'sports', 'music', 'education', 'networking', 'cultural'
-  ];
+  useEffect(() => {
+    const loadCauses = async () => {
+      try {
+        setIsLoadingCauses(true);
+        const result = await CauseService.getAllCauses();
+        
+        if (result.errorCode === ServiceErrorCode.success && result.result) {
+          setCauses(result.result);
+          console.log('✅ Causes loaded successfully:', result.result);
+        } else {
+          console.error('❌ Failed to load causes');
+          showError('Loading Error', 'Failed to load charitable causes. Please refresh the page.');
+        }
+      } catch (error) {
+        console.error('❌ Error loading causes:', error);
+        showError('Loading Error', 'Failed to load charitable causes. Please refresh the page.');
+      } finally {
+        setIsLoadingCauses(false);
+      }
+    };
 
-  // Mock causes - in production, this would be fetched from the backend
-  const mockCauses = [
-    { id: 1, title: 'Digital Literacy for Rural Communities', description: 'Supporting digital literacy programs in rural communities' },
-    { id: 2, title: 'Clean Water Access Initiative', description: 'Providing clean water access to communities in need' },
-    { id: 3, title: 'Reforestation Project', description: 'Planting trees to combat climate change' },
-    { id: 4, title: 'Emergency Food Relief', description: 'Providing emergency food assistance to families' },
-    { id: 5, title: 'Mental Health Support Program', description: 'Supporting mental health initiatives' },
-    { id: 6, title: 'Street Animal Rescue & Care', description: 'Rescuing and caring for street animals' }
-  ];
+    loadCauses();
+  }, [showError]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        showError('Invalid File Type', 'Please select an image file');
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        showError('File Too Large', 'Image size must be less than 5MB');
+        return;
+      }
+
+      setSelectedImage(file);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        showError('Invalid File Type', 'Please select an image file');
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        showError('File Too Large', 'Image size must be less than 5MB');
+        return;
+      }
+
+      setSelectedImage(file);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!isAuthenticated) {
-      alert('Please connect your DID first');
+      showError('Authentication Required', 'Please connect your DID first');
       return;
     }
     
     if (!isConnected) {
-      alert('Please connect your wallet first');
+      showError('Wallet Connection Required', 'Please connect your wallet first');
+      return;
+    }
+
+    if (!formData.causeId) {
+      showError('Cause Selection Required', 'Please select a charitable cause to support');
+      return;
+    }
+
+    if (causes.length === 0) {
+      showError('No Causes Available', 'No charitable causes are available. Please create some causes first.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Step 1: Create NFT Collection
+      let imageUrl = formData.imageUrl;
+      
+      if (selectedImage) {
+        setIsUploading(true);
+        try {
+          imageUrl = await PinataService.uploadImage(selectedImage);
+          console.log('✅ Image uploaded to Pinata:', imageUrl);
+          showSuccess('Image Uploaded', 'Event image uploaded successfully to IPFS');
+        } catch (error) {
+          console.error('❌ Failed to upload image:', error);
+          showError('Upload Failed', 'Failed to upload image. Please try again.');
+          setIsUploading(false);
+          setIsSubmitting(false);
+          return;
+        } finally {
+          setIsUploading(false);
+        }
+      }
+
+      showInfo('Creating NFT Collection', 'Setting up the NFT collection for your event...');
       console.log('🎨 Creating NFT collection for event...');
+      
+      const eventId = Date.now();
       const collectionMetadata = {
         name: `${formData.title} - Event Collection`,
         description: `NFT collection for ${formData.title}. Each NFT represents a ticket to this event.`,
-        eventId: Date.now(), // Temporary ID until we get the real one from the database
+        eventId: eventId,
         maxSupply: parseInt(formData.maxAttendees),
-        imageUrl: formData.imageUrl
+        imageUrl: imageUrl
       };
 
       const collectionTxId = await createNFTCollection(collectionMetadata);
       console.log('✅ NFT collection created with transaction ID:', collectionTxId);
+      showSuccess('NFT Collection Created', `Collection created successfully with transaction ID: ${collectionTxId}`);
 
-      // Step 2: Create event in database
+      showInfo('Creating Event', 'Saving event details to database...');
       console.log('💾 Creating event in database...');
+      
       const eventData: IEvent = {
         title: formData.title,
         description: formData.description,
@@ -83,7 +196,7 @@ const CreateEvent = () => {
         maxAttendees: parseInt(formData.maxAttendees),
         attendees: 0,
         ticketPrice: parseFloat(formData.ticketPrice),
-        imageUrl: formData.imageUrl,
+        imageUrl: imageUrl,
         causeId: parseInt(formData.causeId)
       };
 
@@ -91,15 +204,27 @@ const CreateEvent = () => {
       
       if (result.errorCode === ServiceErrorCode.success && result.result) {
         console.log('✅ Event created successfully:', result.result);
-        alert('Event created successfully! NFT collection has been created and event is now live.');
-        navigate('/events');
+        showSuccess(
+          'Event Created Successfully!', 
+          'Your event is now live with NFT collection ready for ticket sales.'
+        );
+        
+        setTimeout(() => {
+          navigate('/events');
+        }, 2000);
       } else {
         console.error('❌ Failed to create event in database');
-        alert('Failed to create event. Please try again.');
+        showError(
+          'Database Error', 
+          'Event created on blockchain but failed to save to database. Please contact support.'
+        );
       }
     } catch (error) {
       console.error('❌ Error creating event:', error);
-      alert('An error occurred while creating the event. Please try again.');
+      showError(
+        'Creation Failed', 
+        error instanceof Error ? error.message : 'An unexpected error occurred while creating the event.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -278,31 +403,106 @@ const CreateEvent = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Event Image URL</label>
-                  <input
-                    type="url"
-                    value={formData.imageUrl}
-                    onChange={(e) => handleInputChange('imageUrl', e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/image.jpg"
-                  />
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Event Image</label>
+                  {!imagePreview ? (
+                    <div
+                      className="border-2 border-dashed border-white/20 rounded-lg p-8 text-center hover:border-white/40 transition-colors cursor-pointer"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDrop={handleImageDrop}
+                      onDragOver={handleDragOver}
+                    >
+                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-300 mb-2">Drag and drop an image here, or click to select</p>
+                      <p className="text-sm text-gray-400">Supports JPG, PNG, GIF (max 5MB)</p>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-64 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 mt-4">
+                    <h4 className="text-purple-400 font-medium mb-2">Image Guidelines</h4>
+                    <ul className="text-sm text-gray-300 space-y-1">
+                      <li>• Recommended size: 1200x800 pixels or larger</li>
+                      <li>• Maximum file size: 5MB</li>
+                      <li>• Supported formats: JPG, PNG, GIF</li>
+                      <li>• Image will be stored on IPFS via Pinata</li>
+                      <li>• High-quality images help attract more attendees</li>
+                    </ul>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Select Charitable Cause</label>
-                  <select
-                    required
-                    value={formData.causeId}
-                    onChange={(e) => handleInputChange('causeId', e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="" className="bg-slate-800">Select a cause to support</option>
-                    {mockCauses.map(cause => (
-                      <option key={cause.id} value={cause.id} className="bg-slate-800">
-                        {cause.title}
+                  <div className="flex space-x-2">
+                    <select
+                      required
+                      value={formData.causeId}
+                      onChange={(e) => handleInputChange('causeId', e.target.value)}
+                      disabled={isLoadingCauses}
+                      className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="" className="bg-slate-800">
+                        {isLoadingCauses ? 'Loading causes...' : 'Select a cause to support'}
                       </option>
-                    ))}
-                  </select>
+                      {causes.map(cause => (
+                        <option key={cause.id} value={cause.id} className="bg-slate-800">
+                          {cause.title}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLoadingCauses(true);
+                        CauseService.getAllCauses().then(result => {
+                          if (result.errorCode === ServiceErrorCode.success && result.result) {
+                            setCauses(result.result);
+                            showSuccess('Causes Refreshed', 'Charitable causes loaded successfully');
+                          } else {
+                            showError('Refresh Failed', 'Failed to refresh causes');
+                          }
+                        }).catch(error => {
+                          console.error('Error refreshing causes:', error);
+                          showError('Refresh Failed', 'Failed to refresh causes');
+                        }).finally(() => {
+                          setIsLoadingCauses(false);
+                        });
+                      }}
+                      disabled={isLoadingCauses}
+                      className="px-3 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Refresh causes"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  </div>
+                  {isLoadingCauses && (
+                    <p className="text-sm text-gray-400 mt-2">Loading charitable causes...</p>
+                  )}
+                  {!isLoadingCauses && causes.length === 0 && (
+                    <p className="text-sm text-yellow-400 mt-2">No charitable causes available. Please create some causes first.</p>
+                  )}
                 </div>
               </div>
             )}
@@ -341,7 +541,7 @@ const CreateEvent = () => {
                       <div>
                         <span className="text-gray-400">Cause:</span>
                         <span className="text-green-400 ml-2">
-                          {mockCauses.find(c => c.id.toString() === formData.causeId)?.title || 'Not selected'}
+                          {causes.find(c => c.id.toString() === formData.causeId)?.title || 'Not selected'}
                         </span>
                       </div>
                     </div>
@@ -352,9 +552,10 @@ const CreateEvent = () => {
                   <h4 className="text-blue-400 font-medium mb-2">NFT Collection Creation</h4>
                   <ul className="text-sm text-gray-300 space-y-1">
                     <li>• An NFT collection will be created for this event</li>
-                    <li>• Each ticket purchase will mint an NFT from this collection</li>
+                    <li>• Individual NFT tickets will be minted when purchased</li>
                     <li>• The collection will be linked to your wallet address</li>
                     <li>• Collection metadata will include event details</li>
+                    <li>• Maximum supply will be set to {formData.maxAttendees} tickets</li>
                   </ul>
                 </div>
 
@@ -367,6 +568,24 @@ const CreateEvent = () => {
                     <li>• You can edit details until the first ticket is sold</li>
                   </ul>
                 </div>
+
+                {imagePreview && (
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                    <h4 className="text-purple-400 font-medium mb-2">Image Upload</h4>
+                    <div className="flex items-center space-x-4">
+                      <img
+                        src={imagePreview}
+                        alt="Event Preview"
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                      <div className="text-sm text-gray-300">
+                        <p>✓ Event image selected</p>
+                        <p>✓ Will be uploaded to IPFS during creation</p>
+                        <p>✓ Stored permanently on decentralized storage</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -392,10 +611,15 @@ const CreateEvent = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isUploading}
                   className="px-8 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  {isSubmitting ? (
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Uploading Image...</span>
+                    </>
+                  ) : isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                       <span>Creating Event...</span>
