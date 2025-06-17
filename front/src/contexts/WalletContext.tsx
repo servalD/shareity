@@ -6,12 +6,60 @@ import { ResolvedFlow } from 'xumm-oauth2-pkce';
 
 // Helpers
 export async function sendTx(payload: XummTypes.XummPostPayloadBodyJson, sdk: ResolvedFlow['sdk']): Promise<string | undefined> {
-  const payloadSubscripted = await sdk.payload.createAndSubscribe(
-    payload,
-    evt => ('signed' in evt.data ? evt.data : undefined)
-  );
-  await payloadSubscripted.resolved;
-  return payloadSubscripted.payload.response.txid || undefined;
+  console.log('🚀 sendTx called with payload:', payload);
+
+  try {
+    console.log('📱 Creating Xumm payload...');
+    const payloadSubscripted = await sdk.payload.createAndSubscribe(
+      payload,
+      evt => {
+        console.log('📨 Payload event received:', evt);
+        return 'signed' in evt.data ? evt.data : undefined;
+      }
+    );
+
+    console.log('📋 Payload created, full object:', payloadSubscripted.payload);
+
+    // Accéder à la structure correcte du payload
+    const payloadData = payloadSubscripted.payload as any;
+    console.log('🔍 Inspecting payload structure:', Object.keys(payloadData));
+
+    // La structure semble être: payload.payload.request_json, payload.meta, etc.
+    const actualPayload = payloadData.payload;
+    const meta = payloadData.meta;
+
+    console.log('📱 Payload UUID:', meta?.uuid);
+    console.log('📋 Actual payload structure:', actualPayload ? Object.keys(actualPayload) : 'No payload');
+
+    // Construire l'URL Xumm manuellement avec l'UUID
+    if (meta?.uuid) {
+      const xummUrl = `https://xumm.app/sign/${meta.uuid}`;
+      console.log('🔗 Opening Xumm URL:', xummUrl);
+
+      // Ouvrir l'URL dans un nouvel onglet
+      const newWindow = window.open(xummUrl, '_blank');
+      if (!newWindow) {
+        console.warn('⚠️ Popup blocked! Please manually open:', xummUrl);
+        alert(`Popup blocked! Please open this URL manually: ${xummUrl}`);
+      }
+    } else {
+      console.log('⚠️ No UUID found in meta, checking for other properties...');
+      console.log('Meta object:', meta);
+      console.log('Available payload properties:', Object.keys(payloadData));
+    }
+
+    console.log('⏳ Waiting for payload resolution...');
+    const resolved = await payloadSubscripted.resolved;
+    console.log('✅ Payload resolved:', resolved);
+
+    const txId = payloadSubscripted.payload.response.txid;
+    console.log('🎯 Transaction ID:', txId);
+
+    return txId || undefined;
+  } catch (error) {
+    console.error('❌ Error in sendTx:', error);
+    throw error;
+  }
 }
 
 // --- Wallet Context Types ---
