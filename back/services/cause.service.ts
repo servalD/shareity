@@ -23,6 +23,21 @@ export class CauseService {
         }
     }
 
+    async updateCause(id: number, data: Partial<Cause>): Promise<ServiceResult<Cause>> {
+        try {
+            const cause = await Cause.findByPk(id);
+            if (cause) {
+                const updatedCause = await cause.update(data);
+                return ServiceResult.success(updatedCause);
+            } else {
+                return ServiceResult.notFound();
+            }
+        } catch (error) {
+            console.error('Error updating cause:', error);
+            return ServiceResult.failed();
+        }
+    }
+
     async deleteCause(id: number): Promise<ServiceResult<void>> {
         try {
             const cause = await Cause.findByPk(id);
