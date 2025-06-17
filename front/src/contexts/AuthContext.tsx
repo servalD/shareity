@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
-import {ResolvedFlow, XummPkce} from 'xumm-oauth2-pkce';
+import { ResolvedFlow, XummPkce } from 'xumm-oauth2-pkce';
 
 // --- Types ---
 interface User {
@@ -73,6 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, apiKey }) 
   // Common handler when auth is successful
   const handleAuthorized = (authorized: ResolvedFlow) => {
     const { me, sdk } = authorized;
+    console.log('🔑 Auth successful, user data:', me);
     // Build or update User
     const newUser: User = {
       id: user?.id || Math.random().toString(36).slice(2, 9),
@@ -82,6 +83,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, apiKey }) 
       email: me.email,
       createdAt: user?.createdAt || new Date(),
     };
+    console.log('👤 Setting new user:', newUser);
     setUser(newUser);
     setSdk(sdk);
     localStorage.setItem('xrpl-user', JSON.stringify(newUser));
@@ -89,6 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, apiKey }) 
 
   // Launch PKCE flow
   const authorize = useCallback(async () => {
+    console.log('🚀 Starting authorization flow...');
     return auth.authorize();
   }, [auth]);
 

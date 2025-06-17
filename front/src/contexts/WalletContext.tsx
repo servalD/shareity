@@ -54,54 +54,83 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [network] = useState<'testnet' | 'mainnet'>('testnet');
   const clientRef = useRef<Client | null>(null);
 
-  // Initialize XRPL client and load balance when sdk and user are available
-  useEffect(() => {
-    if (sdk && user?.walletAddress) {
-      setIsConnected(true);
-      setAddress(user.walletAddress);
-
-      const wsUrl = network === 'mainnet'
-        ? 'wss://s1.ripple.com'
-        : 'wss://s.altnet.rippletest.net';
-      const client = new Client(wsUrl);
-      clientRef.current = client;
-      client.connect().then(() => {
-        refreshBalance();
-      }).catch(console.error);
-    }
-    return () => {
-      clientRef.current?.disconnect();
-      clientRef.current = null;
-    };
-  }, [sdk, user, network]);
-
   /**
    * Fetches and updates the account balance (in XRP)
    */
   const refreshBalance = useCallback(async () => {
-    if (!clientRef.current || !address) return;
+    if (!clientRef.current || !address) {
+      console.log('⚠️ Cannot refresh balance: client or address missing', {
+        hasClient: !!clientRef.current,
+        address
+      });
+      return;
+    }
     try {
+      console.log('💰 Fetching balance for address:', address);
       const resp = await clientRef.current.request({
         command: 'account_info',
         account: address,
         ledger_index: 'validated'
       });
       const drops = resp.result.account_data.Balance;
-      setBalance(Number(drops) / 1_000_000);
+      const balanceXRP = Number(drops) / 1_000_000;
+      console.log('✅ Balance fetched:', balanceXRP, 'XRP');
+      setBalance(balanceXRP);
     } catch (err) {
-      console.error('Failed to fetch balance', err);
+      console.error('❌ Failed to fetch balance', err);
     }
   }, [address]);
+
+  // Initialize XRPL client and load balance when sdk and user are available
+  useEffect(() => {
+    const initializeWallet = async () => {
+      if (sdk && user?.walletAddress) {
+        console.log('🔗 Initializing wallet for address:', user.walletAddress);
+        setIsConnected(true);
+        setAddress(user.walletAddress);
+
+        const wsUrl = network === 'mainnet'
+          ? 'wss://s1.ripple.com'
+          : 'wss://s.altnet.rippletest.net';
+        const client = new Client(wsUrl);
+        clientRef.current = client;
+
+        try {
+          await client.connect();
+          console.log('🌐 XRPL client connected, fetching balance...');
+          await refreshBalance();
+        } catch (error) {
+          console.error('❌ Failed to connect XRPL client or fetch balance:', error);
+        }
+      }
+    };
+
+    initializeWallet();
+
+    return () => {
+      if (clientRef.current) {
+        clientRef.current.disconnect();
+        clientRef.current = null;
+      }
+    };
+  }, [sdk, user, network, refreshBalance]);
 
   /**
    * Reconnects wallet (no-op if already connected)
    */
   const connectWallet = useCallback(async (): Promise<void> => {
-    await authorize()
-    if (sdk && user?.walletAddress) {
-      await refreshBalance();
+    console.log('🔄 connectWallet called');
+    try {
+      await authorize();
+      console.log('✅ Authorization successful, current user:', user);
+      if (sdk && user?.walletAddress) {
+        console.log('💰 Refreshing balance after connection...');
+        await refreshBalance();
+      }
+    } catch (error) {
+      console.error('❌ Failed to authorize:', error);
     }
-  }, [sdk, user, refreshBalance]);
+  }, [authorize, sdk, user, refreshBalance]);
 
   /**
    * Disconnects wallet and clears state
@@ -144,17 +173,44 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    * @returns transaction hash
    */
   const mintNFT = useCallback(async (metadata: Record<string, unknown>): Promise<string> => {
-    if (!sdk || !address) throw new Error('Wallet not connected');
-    const uriHex = Buffer.from(JSON.stringify(metadata), 'utf8').toString('hex');
-    const txId = await sendTx({
-      txjson: {
-        TransactionType: 'NFTokenMint',
-        Account: address,
-        URI: uriHex
-      }
-    }, sdk)
-    if (txId) return txId;
-    throw new Error('NFT mint transaction was rejected');
+    console.log('🎨 mintNFT called with metadata:', metadata);
+
+    if (!sdk || !address) {
+      const error = `Wallet not connected - sdk: ${!!sdk}, address: ${address}`;
+      console.error('❌ mintNFT error:', error);
+      throw new Error(error);
+    }
+
+    try {
+      // Utiliser TextEncoder au lieu de Buffer pour la compatibilité navigateur
+      const encoder = new TextEncoder();
+      const jsonString = JSON.stringify(metadata);
+      const uint8Array = encoder.encode(jsonString);
+
+      // Convertir en hexadécimal
+      const uriHex = Array.from(uint8Array)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+
+      console.log('🔗 URI hex generated:', uriHex);
+      console.log('📏 URI length:', uriHex.length, 'characters');
+
+      console.log('📝 Creating NFT transaction payload...');
+      const txId = await sendTx({
+        txjson: {
+          TransactionType: 'NFTokenMint',
+          Account: address,
+          URI: uriHex
+        }
+      }, sdk);
+
+      console.log('📤 NFT transaction sent, txId:', txId);
+      if (txId) return txId;
+      throw new Error('NFT mint transaction was rejected');
+    } catch (error) {
+      console.error('❌ Error in mintNFT:', error);
+      throw error;
+    }
   }, [sdk, address]);
 
   /**

@@ -7,7 +7,7 @@ import { useWallet } from '../contexts/WalletContext';
 
 const Navbar: React.FC = () => {
   const { isAuthenticated, user, authorize, logout } = useAuth();
-  const { isConnected, address, balance, connectWallet, disconnectWallet } = useWallet();
+  const { isConnected, address, balance, network, connectWallet, disconnectWallet } = useWallet();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDIDModalOpen, setIsDIDModalOpen] = useState(false);
   const location = useLocation();
@@ -18,7 +18,7 @@ const Navbar: React.FC = () => {
     { name: 'Causes', href: '/causes', icon: Heart },
   ];
   const isActive = (path: string) => location.pathname === path;
-  console.log(isAuthenticated, isConnected, address, balance);
+  console.log(isAuthenticated, isConnected, address, balance, user);
 
   return (
     <>
@@ -55,6 +55,14 @@ const Navbar: React.FC = () => {
 
             {/* Auth & Wallet Section */}
             <div className="hidden md:flex items-center space-x-4">
+              {/* Network Label */}
+              <div className={`px-2 py-1 rounded-full text-xs font-medium border ${network === 'mainnet'
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                }`}>
+                {network.toUpperCase()}
+              </div>
+
               {/* Connect Wallet if DID connected but wallet not */}
               {!isConnected ? (
                 <button
@@ -90,15 +98,15 @@ const Navbar: React.FC = () => {
                           <span>Dashboard</span>
                         </Link>
                       </div>
-                      )}
-                    <button
-                      onClick={logout}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      Logout
-                    </button>
+                    )}
+                  <button
+                    onClick={logout}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    Logout
+                  </button>
                 </>
-              ) }
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -132,6 +140,16 @@ const Navbar: React.FC = () => {
                   </Link>
                 );
               })}
+
+              {/* Network Label for Mobile */}
+              <div className="flex justify-center py-2">
+                <div className={`px-3 py-1 rounded-full text-xs font-medium border ${network === 'mainnet'
+                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                    : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                  }`}>
+                  {network.toUpperCase()}
+                </div>
+              </div>
 
               <div className="pt-4 border-t border-white/10">
                 {!isAuthenticated ? (

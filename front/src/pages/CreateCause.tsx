@@ -1,39 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Target, MapPin, Calendar, FileText, Image, DollarSign } from 'lucide-react';
+import { Heart, Target, Users, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ICause } from '../models/causes.model';
+import { CauseService } from '../services/causes.service';
 import { useAuth } from '../contexts/AuthContext';
+import { useWallet } from '../contexts/WalletContext';
 
 const CreateCause = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { isConnected, mintNFT } = useWallet();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    longDescription: '',
-    category: 'education',
     location: '',
-    targetAmount: '',
-    endDate: '',
-    image: '',
-    organizationName: '',
-    contactEmail: '',
-    website: '',
-    urgency: 'medium',
-    tags: [] as string[],
-    requirements: '',
-    impactMetrics: ''
+    goal: '',
+    supporters: 0,
+    isClosed: false
   });
-
-  const categories = [
-    'education', 'healthcare', 'environment', 'poverty', 'disaster-relief', 
-    'animal-welfare', 'human-rights', 'community-development'
-  ];
-
-  const urgencyLevels = [
-    { value: 'low', label: 'Low Priority', color: 'text-green-400' },
-    { value: 'medium', label: 'Medium Priority', color: 'text-yellow-400' },
-    { value: 'high', label: 'High Priority', color: 'text-red-400' }
-  ];
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -41,20 +26,81 @@ const CreateCause = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isAuthenticated) {
       alert('Please connect your DID first');
       return;
     }
 
-    // Simulate cause creation
-    console.log('Creating cause:', formData);
-    
-    // In production, this would submit to the backend
-    setTimeout(() => {
-      alert('Cause created successfully! It will be reviewed before going live.');
+    if (!isConnected) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Convertir les données au format ICause
+      const causeData: ICause = {
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        goal: Number(formData.goal),
+        supporters: formData.supporters,
+        isClosed: formData.isClosed
+      };
+
+      console.log('Creating cause:', causeData);
+
+      // Créer la cause via le service backend
+      const result = await CauseService.createCause(causeData);
+
+      if (result.errorCode !== 0) { // 0 corresponds to ServiceErrorCode.success
+        throw new Error('Failed to create cause');
+      }
+
+      const createdCause = result.result;
+      if (!createdCause) {
+        throw new Error('No cause data returned from server');
+      }
+
+      console.log('✅ Cause created successfully:', createdCause);
+
+      // Créer un NFT pour la cause
+      const nftMetadata = {
+        type: 'cause_certificate',
+        causeId: createdCause.id,
+        title: createdCause.title,
+        description: createdCause.description,
+        location: createdCause.location,
+        goal: createdCause.goal,
+        createdAt: new Date().toISOString(),
+        creator: 'cause_owner'
+      };
+
+      console.log('🎨 Minting NFT for cause:', nftMetadata);
+      const nftTxId = await mintNFT(nftMetadata);
+      console.log('✅ NFT minted successfully, transaction ID:', nftTxId);
+
+      alert(`Cause created successfully! 
+      🎉 Cause ID: ${createdCause.id}
+      🎨 NFT Transaction: ${nftTxId}
+      Your cause will be reviewed before going live.`);
+
       navigate('/causes');
-    }, 1000);
+    } catch (error) {
+      console.error('❌ Error creating cause:', error);
+
+      // Afficher une erreur plus détaillée
+      let errorMessage = 'Failed to create cause. Please try again.';
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
+
+      alert(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -74,9 +120,9 @@ const CreateCause = () => {
             <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
               <div className="flex items-center mb-6">
                 <Heart className="w-6 h-6 text-pink-400 mr-3" />
-                <h2 className="text-2xl font-bold text-white">Basic Information</h2>
+                <h2 className="text-2xl font-bold text-white">Cause Information</h2>
               </div>
-              
+
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Cause Title</label>
@@ -91,47 +137,15 @@ const CreateCause = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Short Description</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
                   <textarea
                     required
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={3}
+                    rows={4}
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                    placeholder="Brief description that will appear in cause listings"
+                    placeholder="Describe your cause and how it will make a difference"
                   />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => handleInputChange('category', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-                    >
-                      {categories.map(category => (
-                        <option key={category} value={category} className="bg-slate-800">
-                          {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Priority Level</label>
-                    <select
-                      value={formData.urgency}
-                      onChange={(e) => handleInputChange('urgency', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-                    >
-                      {urgencyLevels.map(level => (
-                        <option key={level.value} value={level.value} className="bg-slate-800">
-                          {level.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
                 <div>
@@ -148,93 +162,25 @@ const CreateCause = () => {
               </div>
             </div>
 
-            {/* Detailed Information */}
-            <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
-              <div className="flex items-center mb-6">
-                <FileText className="w-6 h-6 text-blue-400 mr-3" />
-                <h2 className="text-2xl font-bold text-white">Detailed Information</h2>
-              </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Detailed Description</label>
-                  <textarea
-                    required
-                    value={formData.longDescription}
-                    onChange={(e) => handleInputChange('longDescription', e.target.value)}
-                    rows={6}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Provide comprehensive details about your cause, the problem it addresses, and how funds will be used"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Impact Metrics</label>
-                  <textarea
-                    value={formData.impactMetrics}
-                    onChange={(e) => handleInputChange('impactMetrics', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="How will you measure and report the impact? (e.g., number of people helped, trees planted, etc.)"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Requirements & Eligibility</label>
-                  <textarea
-                    value={formData.requirements}
-                    onChange={(e) => handleInputChange('requirements', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Any specific requirements for events that want to support this cause"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Cause Image URL</label>
-                  <input
-                    type="url"
-                    value={formData.image}
-                    onChange={(e) => handleInputChange('image', e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/cause-image.jpg"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Funding Goals */}
+            {/* Funding Goal */}
             <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
               <div className="flex items-center mb-6">
                 <Target className="w-6 h-6 text-green-400 mr-3" />
-                <h2 className="text-2xl font-bold text-white">Funding Goals</h2>
+                <h2 className="text-2xl font-bold text-white">Funding Goal</h2>
               </div>
-              
-              <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Target Amount (XRP)</label>
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      value={formData.targetAmount}
-                      onChange={(e) => handleInputChange('targetAmount', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="How much do you need to raise?"
-                    />
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Campaign End Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={formData.endDate}
-                      onChange={(e) => handleInputChange('endDate', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
-                  </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Goal Amount (XRP)</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={formData.goal}
+                    onChange={(e) => handleInputChange('goal', e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="How much do you need to raise?"
+                  />
                 </div>
 
                 <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
@@ -249,49 +195,53 @@ const CreateCause = () => {
               </div>
             </div>
 
-            {/* Organization Details */}
+            {/* Status Configuration */}
             <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
               <div className="flex items-center mb-6">
-                <MapPin className="w-6 h-6 text-purple-400 mr-3" />
-                <h2 className="text-2xl font-bold text-white">Organization Details</h2>
+                <Users className="w-6 h-6 text-blue-400 mr-3" />
+                <h2 className="text-2xl font-bold text-white">Status & Settings</h2>
               </div>
-              
+
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Organization Name</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Initial Supporters Count</label>
                   <input
-                    type="text"
-                    required
-                    value={formData.organizationName}
-                    onChange={(e) => handleInputChange('organizationName', e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Name of your organization or initiative"
+                    type="number"
+                    min="0"
+                    value={formData.supporters}
+                    onChange={(e) => handleInputChange('supporters', Number(e.target.value))}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Number of current supporters (default: 0)"
                   />
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Contact Email</label>
-                    <input
-                      type="email"
-                      required
-                      value={formData.contactEmail}
-                      onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="contact@organization.org"
-                    />
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Cause Status</label>
+                    <p className="text-xs text-gray-400">
+                      {formData.isClosed ? 'This cause is closed for new donations' : 'This cause is open for donations'}
+                    </p>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Website (Optional)</label>
-                    <input
-                      type="url"
-                      value={formData.website}
-                      onChange={(e) => handleInputChange('website', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="https://organization.org"
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('isClosed', !formData.isClosed)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${formData.isClosed
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      }`}
+                  >
+                    {formData.isClosed ? (
+                      <>
+                        <ToggleRight className="w-5 h-5" />
+                        <span>Closed</span>
+                      </>
+                    ) : (
+                      <>
+                        <ToggleLeft className="w-5 h-5" />
+                        <span>Open</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -310,9 +260,13 @@ const CreateCause = () => {
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white py-4 rounded-lg hover:from-pink-700 hover:to-rose-700 transition-all duration-200 font-semibold text-lg"
+                disabled={isLoading}
+                className={`w-full py-4 rounded-lg transition-all duration-200 font-semibold text-lg ${isLoading
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700'
+                  } text-white`}
               >
-                Submit Cause for Review
+                {isLoading ? 'Creating Cause & NFT...' : 'Submit Cause for Review'}
               </button>
             </div>
           </div>
