@@ -11,9 +11,10 @@ interface DonationModalProps {
     organization: string;
     address?: string; // Adresse XRP de la cause (optionnelle)
   };
+  onDonationSuccess?: (causeId: string, amount: number) => void; // Callback pour la mise à jour
 }
 
-const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause }) => {
+const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, onDonationSuccess }) => {
   const { sendPayment, balance, isConnected } = useWallet();
   const [step, setStep] = useState<'form' | 'processing' | 'success'>('form');
   const [amount, setAmount] = useState(10);
@@ -53,6 +54,11 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause })
       const txId = await sendPayment(address, amount);
       setTransactionId(txId);
       setStep('success');
+
+      // Appeler le callback pour informer le parent de la donation réussie
+      if (onDonationSuccess) {
+        onDonationSuccess(cause.id, amount);
+      }
 
       console.log('✅ Donation successful, txId:', txId);
     } catch (error) {

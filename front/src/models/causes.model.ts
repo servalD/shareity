@@ -3,6 +3,9 @@ export interface ICause {
     title: string;
     description: string;
     location: string;
+    addressDestination: string;
+    imageUrl: string;
+    raisedAmount: string;
     goal: number;
     supporters: number;
     isClosed: boolean;

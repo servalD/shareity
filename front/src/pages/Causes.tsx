@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Users, TrendingUp, Search, MapPin, Calendar, Target, Plus } from 'lucide-react';
+import { Heart, Users, TrendingUp, Search, MapPin, Calendar, Target, Plus, Image as ImageIcon } from 'lucide-react';
 import { ICauseId } from '../models/causes.model';
 import { CauseService } from '../services/causes.service';
 import { ServiceErrorCode } from '../services/service.result';
@@ -10,18 +10,13 @@ interface CauseDisplay {
   id: string;
   title: string;
   description: string;
-  category: string;
   location: string;
-  goal: number;
-  targetAmount: number;
+  addressDestination: string;
+  imageUrl: string;
   raisedAmount: number;
+  goal: number;
   supporters: number;
   isClosed: boolean;
-  image: string;
-  organization: string;
-  verified: boolean;
-  urgency: 'low' | 'medium' | 'high';
-  endDate: Date;
   events: number;
 }
 
@@ -39,37 +34,19 @@ const Causes = () => {
 
   const categories = ['all', 'education', 'healthcare', 'environment', 'poverty', 'disaster-relief', 'animal-welfare'];
 
-  // Fonction pour convertir ICauseId en CauseDisplay avec des valeurs par défaut
   const convertCauseToDisplay = (cause: ICauseId): CauseDisplay => {
-    // Images par défaut basées sur l'ID ou un index
-    const defaultImages = [
-      'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg',
-      'https://images.pexels.com/photos/2402777/pexels-photo-2402777.jpeg',
-      'https://images.pexels.com/photos/2800832/pexels-photo-2800832.jpeg',
-      'https://images.pexels.com/photos/6995247/pexels-photo-6995247.jpeg',
-      'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg',
-      'https://images.pexels.com/photos/1851164/pexels-photo-1851164.jpeg'
-    ];
-
-    const imageIndex = parseInt(cause.id?.toString() || '0') % defaultImages.length;
-
     return {
       id: cause.id?.toString() || 'unknown',
       title: cause.title || 'Untitled Cause',
       description: cause.description || 'No description available',
-      category: 'education', // Valeur par défaut, peut être déterminée par le titre ou la description
       location: cause.location || 'Location not specified',
-      goal: cause.goal || 10000,
-      targetAmount: cause.goal || 10000,
-      raisedAmount: Math.floor((cause.goal || 10000) * Math.random() * 0.8), // Simulation
-      supporters: cause.supporters || Math.floor(Math.random() * 200),
+      addressDestination: cause.addressDestination || '',
+      imageUrl: cause.imageUrl || '',
+      raisedAmount: parseFloat(cause.raisedAmount) || 0,
+      goal: cause.goal || 0,
+      supporters: cause.supporters || 0,
       isClosed: cause.isClosed || false,
-      image: defaultImages[imageIndex],
-      organization: 'Community Organization', // Valeur par défaut
-      verified: true,
-      urgency: Math.random() > 0.6 ? 'high' : Math.random() > 0.3 ? 'medium' : 'low',
-      endDate: new Date(Date.now() + Math.random() * 90 * 24 * 60 * 60 * 1000), // Date aléatoire dans les 90 jours
-      events: Math.floor(Math.random() * 15)
+      events: Math.floor(Math.random() * 15) + 1 // Nombre aléatoire entre 1 et 15
     };
   };
 
@@ -83,17 +60,16 @@ const Causes = () => {
         const result = await CauseService.getAllCauses();
 
         if (result.errorCode === ServiceErrorCode.success && result.result) {
-          // Conversion des données ICauseId en CauseDisplay
           const convertedCauses = result.result.map(convertCauseToDisplay);
           setCauses(convertedCauses);
         } else {
-          console.warn('Failed to fetch causes from service, using mock data');
-          setCauses(mockCauses);
+          console.warn('Failed to fetch causes from service');
+          setCauses([]);
         }
       } catch (err) {
         console.error('Error fetching causes:', err);
         setError('Failed to load causes');
-        setCauses(mockCauses);
+        setCauses([]);
       } finally {
         setLoading(false);
       }
@@ -102,123 +78,50 @@ const Causes = () => {
     fetchCauses();
   }, []);
 
-  const mockCauses: CauseDisplay[] = [
-    {
-      id: '1',
-      title: 'Digital Literacy for Rural Communities',
-      description: 'Providing computer and internet access to underserved rural areas to bridge the digital divide.',
-      category: 'education',
-      location: 'Rural Maharashtra, India',
-      goal: 50000,
-      targetAmount: 50000,
-      raisedAmount: 32500,
-      supporters: 156,
-      isClosed: false,
-      image: 'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg',
-      organization: 'Digital India Foundation',
-      verified: true,
-      urgency: 'medium',
-      endDate: new Date('2024-06-30'),
-      events: 8
-    },
-    {
-      id: '2',
-      title: 'Clean Water Access Initiative',
-      description: 'Installing water purification systems and wells in communities lacking access to clean drinking water.',
-      category: 'healthcare',
-      location: 'Rajasthan, India',
-      goal: 75000,
-      targetAmount: 75000,
-      raisedAmount: 45600,
-      supporters: 234,
-      isClosed: false,
-      image: 'https://images.pexels.com/photos/2402777/pexels-photo-2402777.jpeg',
-      organization: 'Water for All',
-      verified: true,
-      urgency: 'high',
-      endDate: new Date('2024-05-15'),
-      events: 12
-    },
-    {
-      id: '3',
-      title: 'Reforestation Project',
-      description: 'Planting native trees to restore degraded forest areas and combat climate change.',
-      category: 'environment',
-      location: 'Western Ghats, India',
-      goal: 30000,
-      targetAmount: 30000,
-      raisedAmount: 18750,
-      supporters: 89,
-      isClosed: false,
-      image: 'https://images.pexels.com/photos/2800832/pexels-photo-2800832.jpeg',
-      organization: 'Green Earth Initiative',
-      verified: true,
-      urgency: 'medium',
-      endDate: new Date('2024-08-31'),
-      events: 5
-    },
-    {
-      id: '4',
-      title: 'Emergency Food Relief',
-      description: 'Providing nutritious meals to families affected by natural disasters and economic hardship.',
-      category: 'poverty',
-      location: 'Multiple States, India',
-      goal: 100000,
-      targetAmount: 100000,
-      raisedAmount: 67800,
-      supporters: 445,
-      isClosed: false,
-      image: 'https://images.pexels.com/photos/6995247/pexels-photo-6995247.jpeg',
-      organization: 'Food Security Network',
-      verified: true,
-      urgency: 'high',
-      endDate: new Date('2024-04-30'),
-      events: 15
-    },
-    {
-      id: '5',
-      title: 'Mental Health Support Program',
-      description: 'Providing counseling services and mental health resources to underserved communities.',
-      category: 'healthcare',
-      location: 'Urban Centers, India',
-      goal: 40000,
-      targetAmount: 40000,
-      raisedAmount: 22100,
-      supporters: 167,
-      isClosed: false,
-      image: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg',
-      organization: 'Mind Wellness Foundation',
-      verified: true,
-      urgency: 'medium',
-      endDate: new Date('2024-07-31'),
-      events: 6
-    },
-    {
-      id: '6',
-      title: 'Street Animal Rescue & Care',
-      description: 'Rescuing, treating, and rehabilitating street animals while promoting responsible pet ownership.',
-      category: 'animal-welfare',
-      location: 'Bangalore, India',
-      goal: 25000,
-      targetAmount: 25000,
-      raisedAmount: 16800,
-      supporters: 203,
-      isClosed: false,
-      image: 'https://images.pexels.com/photos/1851164/pexels-photo-1851164.jpeg',
-      organization: 'Animal Care Society',
-      verified: true,
-      urgency: 'low',
-      endDate: new Date('2024-09-30'),
-      events: 4
+  const handleDonationSuccess = async (causeId: string, amount: number) => {
+    try {
+      console.log('🔄 Updating cause after donation:', { causeId, amount });
+      
+      // Trouver la cause actuelle
+      const currentCause = causes.find(c => c.id === causeId);
+      if (!currentCause) {
+        console.error('Cause not found for update:', causeId);
+        return;
+      }
+
+      // Calculer les nouvelles valeurs
+      const newRaisedAmount = currentCause.raisedAmount + amount;
+      const newSupporters = currentCause.supporters + 1;
+
+      // Mettre à jour via l'API
+      const updateResult = await CauseService.updateCause(parseInt(causeId), {
+        raisedAmount: newRaisedAmount.toString(),
+        supporters: newSupporters
+      });
+
+      if (updateResult.errorCode === ServiceErrorCode.success) {
+        // Mettre à jour l'état local
+        setCauses(prevCauses => 
+          prevCauses.map(cause => 
+            cause.id === causeId 
+              ? { ...cause, raisedAmount: newRaisedAmount, supporters: newSupporters }
+              : cause
+          )
+        );
+        console.log('✅ Cause updated successfully');
+      } else {
+        console.error('❌ Failed to update cause:', updateResult);
+      }
+    } catch (error) {
+      console.error('❌ Error updating cause:', error);
     }
-  ];
+  };
 
   const filteredCauses = causes.filter(cause => {
     const matchesSearch = cause.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cause.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || cause.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const sortedCauses = [...filteredCauses].sort((a, b) => {
@@ -226,24 +129,21 @@ const Causes = () => {
       case 'trending':
         return b.supporters - a.supporters;
       case 'urgent':
-        const urgencyOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
-        return urgencyOrder[b.urgency] - urgencyOrder[a.urgency];
+        return b.raisedAmount - a.raisedAmount;
       case 'progress':
-        return (b.raisedAmount / b.targetAmount) - (a.raisedAmount / a.targetAmount);
+        return (b.raisedAmount / b.goal) - (a.raisedAmount / a.goal);
       case 'newest':
-        return b.endDate.getTime() - a.endDate.getTime();
+        return b.id.localeCompare(a.id);
       default:
         return 0;
     }
   });
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'high': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'low': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
+  const getUrgencyColor = (raisedAmount: number, goal: number) => {
+    const progress = (raisedAmount / goal) * 100;
+    if (progress >= 80) return 'bg-green-500/20 text-green-400 border-green-500/30';
+    if (progress >= 50) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+    return 'bg-red-500/20 text-red-400 border-red-500/30';
   };
 
   const handleOpenDonationModal = (cause: CauseDisplay) => {
@@ -353,7 +253,7 @@ const Causes = () => {
             ))
           ) : (
             sortedCauses.map((cause) => {
-              const progressPercentage = (cause.raisedAmount / cause.targetAmount) * 100;
+              const progressPercentage = (cause.raisedAmount / cause.goal) * 100;
 
               return (
                 <div
@@ -362,26 +262,35 @@ const Causes = () => {
                 >
                   {/* Cause Image */}
                   <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={cause.image}
-                      alt={cause.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-sm font-medium border ${getUrgencyColor(cause.urgency)}`}>
-                      {cause.urgency} priority
+                    {cause.imageUrl ? (
+                      <img
+                        src={cause.imageUrl}
+                        alt={cause.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                        <div className="text-center">
+                          <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                          <p className="text-gray-400 text-sm">No image available</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-sm font-medium border ${getUrgencyColor(cause.raisedAmount, cause.goal)}`}>
+                      {progressPercentage.toFixed(0)}%
                     </div>
                     <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
-                      {cause.category.replace('-', ' ')}
+                      #{cause.id}
                     </div>
                   </div>
 
                   {/* Cause Content */}
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm text-gray-400">{cause.organization}</span>
-                      {cause.verified && (
-                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs">✓</span>
+                      <span className="text-sm text-gray-400">Cause #{cause.id}</span>
+                      {cause.isClosed && (
+                        <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">×</span>
                         </div>
                       )}
                     </div>
@@ -400,10 +309,6 @@ const Causes = () => {
                         {cause.location}
                       </div>
                       <div className="flex items-center text-gray-300 text-sm">
-                        <Calendar className="w-4 h-4 mr-2 text-blue-400" />
-                        Ends {cause.endDate.toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center text-gray-300 text-sm">
                         <Target className="w-4 h-4 mr-2 text-purple-400" />
                         {cause.events} supporting events
                       </div>
@@ -413,7 +318,7 @@ const Causes = () => {
                     <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-400 mb-2">
                         <span>Progress</span>
-                        <span>{Math.round(progressPercentage)}%</span>
+                        <span>{progressPercentage.toFixed(0)}%</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
                         <div
@@ -426,7 +331,7 @@ const Causes = () => {
                           {cause.raisedAmount.toLocaleString()} XRP raised
                         </span>
                         <span className="text-white font-medium">
-                          {cause.targetAmount.toLocaleString()} XRP goal
+                          {cause.goal.toLocaleString()} XRP goal
                         </span>
                       </div>
                     </div>
@@ -446,9 +351,14 @@ const Causes = () => {
                     {/* CTA */}
                     <button
                       onClick={() => handleOpenDonationModal(cause)}
-                      className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-3 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200 font-medium text-center"
+                      disabled={cause.isClosed}
+                      className={`w-full py-3 rounded-lg transition-all duration-200 font-medium text-center ${
+                        cause.isClosed 
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                          : 'bg-gradient-to-r from-green-600 to-teal-600 text-white hover:from-green-700 hover:to-teal-700'
+                      }`}
                     >
-                      Support This Cause
+                      {cause.isClosed ? 'Cause Closed' : 'Support This Cause'}
                     </button>
                   </div>
                 </div>
@@ -483,9 +393,10 @@ const Causes = () => {
           cause={{
             id: donationModal.cause.id,
             title: donationModal.cause.title,
-            organization: donationModal.cause.organization,
-            address: undefined // Pour l'instant, pas d'adresse par défaut
+            organization: `Cause #${donationModal.cause.id}`,
+            address: donationModal.cause.addressDestination
           }}
+          onDonationSuccess={handleDonationSuccess}
         />
       )}
     </div>

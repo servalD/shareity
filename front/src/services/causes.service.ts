@@ -31,6 +31,19 @@ export class CauseService {
         }
     }
 
+    static async updateCause(id: number, updates: Partial<ICause>): Promise<ServiceResult<ICauseId>> {
+        try {
+            const res = await axios.put(`${ApiService.baseURL}/causes/${id}`, updates);
+            if (res.status === 200) {
+                return ServiceResult.success<ICauseId>(res.data);
+            }
+            return ServiceResult.failed();
+        } catch(err) {
+            console.log(err);
+            return ServiceResult.failed();
+        }
+    }
+
     static async deleteCause(id: number): Promise<ServiceResult<ICauseId>> {
         try {
             const res = await axios.delete(`${ApiService.baseURL}/causes/${id}`);
