@@ -26,7 +26,7 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, o
   if (!isOpen) return null;
 
   const isInsufficientBalance = amount > balance;
-  const isFormValid = amount > 0 && address.trim() !== '';
+  const isFormValid = amount > 0 && (cause.address || address.trim() !== '');
 
   const handleDonate = async () => {
     if (!isConnected) {
@@ -49,9 +49,11 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, o
     setError(null);
 
     try {
-      console.log('🎁 Starting donation:', { amount, address, cause: cause.title });
+      // Utiliser l'adresse de la cause si elle existe, sinon l'adresse saisie
+      const destinationAddress = cause.address || address;
+      console.log('🎁 Starting donation:', { amount, address: destinationAddress, cause: cause.title });
 
-      const txId = await sendPayment(address, amount);
+      const txId = await sendPayment(destinationAddress, amount);
       setTransactionId(txId);
       setStep('success');
 
@@ -144,17 +146,26 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, o
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Destination Address
               </label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Enter XRP address (rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX)"
-              />
-              {!cause.address && (
-                <p className="text-xs text-yellow-400 mt-1">
-                  ⚠️ This cause doesn't have a default address. Please enter the destination address.
-                </p>
+              {cause.address ? (
+                <div className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-mono">{cause.address}</span>
+                    <span className="text-xs text-green-400 bg-green-500/20 px-2 py-1 rounded">Verified</span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Enter XRP address (rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX)"
+                  />
+                  <p className="text-xs text-yellow-400 mt-1">
+                    ⚠️ This cause doesn't have a default address. Please enter the destination address.
+                  </p>
+                </>
               )}
             </div>
 

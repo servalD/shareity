@@ -248,7 +248,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         txjson: {
           TransactionType: 'NFTokenMint',
           Account: address,
-          URI: uriHex
+          URI: uriHex,
+          NFTokenTaxon: 0,
+          Flags: 0
         }
       }, sdk);
 

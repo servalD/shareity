@@ -25,14 +25,12 @@ const Causes = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('trending');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [donationModal, setDonationModal] = useState<{
     isOpen: boolean;
     cause: CauseDisplay | null;
   }>({ isOpen: false, cause: null });
-
-  const categories = ['all', 'education', 'healthcare', 'environment', 'poverty', 'disaster-relief', 'animal-welfare'];
 
   const convertCauseToDisplay = (cause: ICauseId): CauseDisplay => {
     return {
@@ -125,18 +123,27 @@ const Causes = () => {
   });
 
   const sortedCauses = [...filteredCauses].sort((a, b) => {
+    let comparison = 0;
+    
     switch (sortBy) {
       case 'trending':
-        return b.supporters - a.supporters;
+        comparison = a.supporters - b.supporters;
+        break;
       case 'urgent':
-        return b.raisedAmount - a.raisedAmount;
+        comparison = a.raisedAmount - b.raisedAmount;
+        break;
       case 'progress':
-        return (b.raisedAmount / b.goal) - (a.raisedAmount / a.goal);
+        comparison = (a.raisedAmount / a.goal) - (b.raisedAmount / b.goal);
+        break;
       case 'newest':
-        return b.id.localeCompare(a.id);
+        comparison = a.id.localeCompare(b.id);
+        break;
       default:
-        return 0;
+        comparison = 0;
     }
+    
+    // Appliquer l'ordre de tri
+    return sortOrder === 'desc' ? -comparison : comparison;
   });
 
   const getUrgencyColor = (raisedAmount: number, goal: number) => {
@@ -180,19 +187,6 @@ const Causes = () => {
               />
             </div>
 
-            {/* Category Filter */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {categories.map(category => (
-                <option key={category} value={category} className="bg-slate-800">
-                  {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
-                </option>
-              ))}
-            </select>
-
             {/* Sort */}
             <select
               value={sortBy}
@@ -204,6 +198,30 @@ const Causes = () => {
               <option value="progress" className="bg-slate-800">Highest Progress</option>
               <option value="newest" className="bg-slate-800">Newest</option>
             </select>
+
+            {/* Sort Order */}
+            <div className="flex">
+              <button
+                onClick={() => setSortOrder('desc')}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  sortOrder === 'desc'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                ↓ Desc
+              </button>
+              <button
+                onClick={() => setSortOrder('asc')}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  sortOrder === 'asc'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                ↑ Asc
+              </button>
+            </div>
           </div>
         </div>
 
