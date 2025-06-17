@@ -21,6 +21,7 @@ interface CauseDisplay {
 }
 
 const Causes = () => {
+  console.log('🏠 Causes component mounted');
   const [causes, setCauses] = useState<CauseDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,22 +51,34 @@ const Causes = () => {
 
   useEffect(() => {
     const fetchCauses = async () => {
+      console.log('🔄 Starting to fetch causes...');
       setLoading(true);
       setError(null);
 
       try {
+        console.log('📡 Calling CauseService.getAllCauses()...');
         const result = await CauseService.getAllCauses();
+        console.log('📥 Service response:', result);
 
         if (result.errorCode === ServiceErrorCode.success && result.result) {
+          console.log('✅ Success! Found causes:', result.result);
           const convertedCauses = result.result.map(convertCauseToDisplay);
+          console.log('🔄 Converted causes:', convertedCauses);
           setCauses(convertedCauses);
         } else {
+          console.log('⚠️ No causes found or service error:', {
+            errorCode: result.errorCode,
+            hasResult: !!result.result,
+            result: result.result
+          });
           setCauses([]);
         }
       } catch (err) {
+        console.error('❌ Error fetching causes:', err);
         setError('Failed to load causes');
         setCauses([]);
       } finally {
+        console.log('🏁 Finished fetching causes, setting loading to false');
         setLoading(false);
       }
     };
@@ -89,9 +102,9 @@ const Causes = () => {
       });
 
       if (updateResult.errorCode === ServiceErrorCode.success) {
-        setCauses(prevCauses => 
-          prevCauses.map(cause => 
-            cause.id === causeId 
+        setCauses(prevCauses =>
+          prevCauses.map(cause =>
+            cause.id === causeId
               ? { ...cause, raisedAmount: newRaisedAmount, supporters: newSupporters }
               : cause
           )
@@ -110,7 +123,7 @@ const Causes = () => {
 
   const sortedCauses = [...filteredCauses].sort((a, b) => {
     let comparison = 0;
-    
+
     switch (sortBy) {
       case 'trending':
         comparison = a.supporters - b.supporters;
@@ -127,7 +140,7 @@ const Causes = () => {
       default:
         comparison = 0;
     }
-    
+
     return sortOrder === 'desc' ? -comparison : comparison;
   });
 
@@ -183,21 +196,19 @@ const Causes = () => {
             <div className="flex">
               <button
                 onClick={() => setSortOrder('desc')}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                  sortOrder === 'desc'
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${sortOrder === 'desc'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
+                  }`}
               >
                 ↓ Desc
               </button>
               <button
                 onClick={() => setSortOrder('asc')}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                  sortOrder === 'asc'
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 ${sortOrder === 'asc'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
+                  }`}
               >
                 ↑ Asc
               </button>
@@ -340,11 +351,10 @@ const Causes = () => {
                     <button
                       onClick={() => handleOpenDonationModal(cause)}
                       disabled={cause.isClosed}
-                      className={`w-full py-3 rounded-lg transition-all duration-200 font-medium text-center ${
-                        cause.isClosed 
-                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                      className={`w-full py-3 rounded-lg transition-all duration-200 font-medium text-center ${cause.isClosed
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                           : 'bg-gradient-to-r from-green-600 to-teal-600 text-white hover:from-green-700 hover:to-teal-700'
-                      }`}
+                        }`}
                     >
                       {cause.isClosed ? 'Cause Closed' : 'Support This Cause'}
                     </button>

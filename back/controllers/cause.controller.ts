@@ -12,6 +12,8 @@ export class CauseController {
             const serviceResult: ServiceResult<Cause> = await causeService.createCause(req.body);
             if (serviceResult.errorCode === ServiceErrorCode.success) {
                 return res.status(201).json(serviceResult.result);
+            } else {
+                return res.status(400).json({ message: 'Error creating cause', errorCode: serviceResult.errorCode });
             }
         } catch (err) {
             return res.status(500).json({ message: 'Error creating cause' });
@@ -23,6 +25,8 @@ export class CauseController {
             const serviceResult: ServiceResult<Cause[]> = await causeService.getAllCauses();
             if (serviceResult.errorCode === ServiceErrorCode.success) {
                 return res.status(200).json(serviceResult.result);
+            } else {
+                return res.status(500).json({ message: 'Error fetching causes', errorCode: serviceResult.errorCode });
             }
         } catch (err) {
             return res.status(500).json({ message: 'Error fetching causes' });
@@ -37,6 +41,8 @@ export class CauseController {
                 return res.status(200).json(serviceResult.result);
             } else if (serviceResult.errorCode === ServiceErrorCode.notFound) {
                 return res.status(404).json({ message: 'Cause not found' });
+            } else {
+                return res.status(400).json({ message: 'Error updating cause', errorCode: serviceResult.errorCode });
             }
         } catch (err) {
             return res.status(500).json({ message: 'Error updating cause' });
@@ -51,6 +57,8 @@ export class CauseController {
                 return res.status(204).send();
             } else if (serviceResult.errorCode === ServiceErrorCode.notFound) {
                 return res.status(404).json({ message: 'Cause not found' });
+            } else {
+                return res.status(400).json({ message: 'Error deleting cause', errorCode: serviceResult.errorCode });
             }
         } catch (err) {
             return res.status(500).json({ message: 'Error deleting cause' });
@@ -65,6 +73,8 @@ export class CauseController {
                 return res.status(200).json(serviceResult.result);
             } else if (serviceResult.errorCode === ServiceErrorCode.notFound) {
                 return res.status(404).json({ message: 'Cause not found' });
+            } else {
+                return res.status(400).json({ message: 'Error fetching cause with event count', errorCode: serviceResult.errorCode });
             }
         } catch (err) {
             return res.status(500).json({ message: 'Error fetching cause with event count' });

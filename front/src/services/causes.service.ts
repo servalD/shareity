@@ -12,19 +12,40 @@ export class CauseService {
                 return ServiceResult.success<ICauseId>(res.data);
             }
             return ServiceResult.failed();
-        } catch(err) {
+        } catch (err) {
             return ServiceResult.failed();
         }
     }
 
     static async getAllCauses(): Promise<ServiceResult<ICauseId[] | undefined>> {
         try {
-            const res = await axios.get(`${ApiService.baseURL}/causes`);
+            console.log('📡 Making request to:', `${ApiService.baseURL}/causes`);
+            const res = await axios.get(`${ApiService.baseURL}/causes`, {
+                timeout: 10000, // 10 secondes timeout
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            console.log('📥 Raw response:', res);
+            console.log('📊 Response status:', res.status);
+            console.log('📋 Response data:', res.data);
+
             if (res.status === 200) {
                 return ServiceResult.success(res.data);
             }
+            console.log('⚠️ Unexpected status code:', res.status);
             return ServiceResult.failed();
-        } catch(err) {
+        } catch (err) {
+            console.error('❌ Error in getAllCauses:', err);
+            if (axios.isAxiosError(err)) {
+                console.error('🌐 Axios error details:', {
+                    message: err.message,
+                    status: err.response?.status,
+                    data: err.response?.data,
+                    url: err.config?.url,
+                    timeout: err.code === 'ECONNABORTED' ? 'Request timed out' : false
+                });
+            }
             return ServiceResult.failed();
         }
     }
@@ -36,7 +57,7 @@ export class CauseService {
                 return ServiceResult.success<ICauseId>(res.data);
             }
             return ServiceResult.failed();
-        } catch(err) {
+        } catch (err) {
             return ServiceResult.failed();
         }
     }
@@ -48,7 +69,7 @@ export class CauseService {
                 return ServiceResult.success(res.data);
             }
             return ServiceResult.failed();
-        } catch(err) {
+        } catch (err) {
             return ServiceResult.failed();
         }
     }
@@ -60,7 +81,7 @@ export class CauseService {
                 return ServiceResult.success<ICauseId>(res.data);
             }
             return ServiceResult.failed();
-        } catch(err) {
+        } catch (err) {
             return ServiceResult.failed();
         }
     }
