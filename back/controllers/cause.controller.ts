@@ -57,9 +57,24 @@ export class CauseController {
         }
     }
 
+    async getCauseWithEventCount(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const serviceResult: ServiceResult<Cause & { eventsCount: number }> = await causeService.getCauseWithEventCount(Number(id));
+            if (serviceResult.errorCode === ServiceErrorCode.success) {
+                return res.status(200).json(serviceResult.result);
+            } else if (serviceResult.errorCode === ServiceErrorCode.notFound) {
+                return res.status(404).json({ message: 'Cause not found' });
+            }
+        } catch (err) {
+            return res.status(500).json({ message: 'Error fetching cause with event count' });
+        }
+    }
+
     buildRoutes(): Router {
         const router = express.Router();
         router.get('/', this.getAllCauses.bind(this));
+        router.get('/:id/events-count', this.getCauseWithEventCount.bind(this));
         router.post('/', this.createCause.bind(this));
         router.put('/:id', this.updateCause.bind(this));
         router.delete('/:id', this.deleteCause.bind(this));

@@ -8,7 +8,6 @@ export class EventService {
             const event = await Event.create(data);
             return ServiceResult.success(event);
         } catch (error) {
-            console.error('Error creating event:', error);
             return ServiceResult.failed();
         }
     }
@@ -16,15 +15,15 @@ export class EventService {
     async getAllEvents(): Promise<ServiceResult<Event[]>> {
         try {
             const events = await Event.findAll({
+                attributes: ['id', 'title', 'description', 'date', 'city', 'country', 'maxAttendees', 'attendees', 'ticketPrice', 'imageUrl', 'causeId'],
                 include: [{
                     model: require('../models/cause.model').Cause,
                     as: 'cause',
-                    attributes: ['id', 'title', 'description']
+                    attributes: ['id', 'title', 'description', 'addressDestination']
                 }]
             });
             return ServiceResult.success(events);
         } catch (error) {
-            console.error('Error fetching events:', error);
             return ServiceResult.failed();
         }
     }
@@ -32,10 +31,11 @@ export class EventService {
     async getEventById(id: number): Promise<ServiceResult<Event>> {
         try {
             const event = await Event.findByPk(id, {
+                attributes: ['id', 'title', 'description', 'date', 'city', 'country', 'maxAttendees', 'attendees', 'ticketPrice', 'imageUrl', 'causeId'],
                 include: [{
                     model: require('../models/cause.model').Cause,
                     as: 'cause',
-                    attributes: ['id', 'title', 'description']
+                    attributes: ['id', 'title', 'description', 'addressDestination']
                 }]
             });
             if (event) {
@@ -44,7 +44,6 @@ export class EventService {
                 return ServiceResult.notFound();
             }
         } catch (error) {
-            console.error('Error fetching event:', error);
             return ServiceResult.failed();
         }
     }
@@ -59,7 +58,6 @@ export class EventService {
                 return ServiceResult.notFound();
             }
         } catch (error) {
-            console.error('Error updating event:', error);
             return ServiceResult.failed();
         }
     }
@@ -74,7 +72,6 @@ export class EventService {
                 return ServiceResult.notFound();
             }
         } catch (error) {
-            console.error('Error deleting event:', error);
             return ServiceResult.failed();
         }
     }
@@ -83,15 +80,15 @@ export class EventService {
         try {
             const events = await Event.findAll({
                 where: { causeId },
+                attributes: ['id', 'title', 'description', 'date', 'city', 'country', 'maxAttendees', 'attendees', 'ticketPrice', 'imageUrl', 'causeId'],
                 include: [{
                     model: require('../models/cause.model').Cause,
                     as: 'cause',
-                    attributes: ['id', 'title', 'description']
+                    attributes: ['id', 'title', 'description', 'addressDestination']
                 }]
             });
             return ServiceResult.success(events);
         } catch (error) {
-            console.error('Error fetching events by cause:', error);
             return ServiceResult.failed();
         }
     }

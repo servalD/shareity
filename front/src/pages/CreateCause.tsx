@@ -169,7 +169,6 @@ const CreateCause = () => {
     } catch (error) {
       console.error('❌ Error creating cause:', error);
 
-      // Afficher une erreur plus détaillée
       let errorMessage = 'Failed to create cause. Please try again.';
       if (error instanceof Error) {
         errorMessage = `Error: ${error.message}`;

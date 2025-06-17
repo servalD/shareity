@@ -8,17 +8,38 @@ export class CauseService {
             const cause = await Cause.create(data);
             return ServiceResult.success(cause);
         } catch (error) {
-            console.error('Error creating cause:', error);
             return ServiceResult.failed();
         }
     }
 
     async getAllCauses(): Promise<ServiceResult<Cause[]>> {
         try {
-            const causes = await Cause.findAll();
-            return ServiceResult.success(causes);
+            const causes = await Cause.findAll({
+                include: [{
+                    model: require('../models/event.model').Event,
+                    as: 'events',
+                    attributes: []
+                }],
+                attributes: {
+                    include: [
+                        [
+                            require('sequelize').literal('(SELECT COUNT(*) FROM event WHERE event.causeId = cause.id)'),
+                            'eventsCount'
+                        ]
+                    ]
+                }
+            });
+            
+            const causesWithEventCount = causes.map(cause => {
+                const causeData = cause.get({ plain: true });
+                return {
+                    ...causeData,
+                    eventsCount: parseInt(causeData.eventsCount) || 0
+                };
+            });
+            
+            return ServiceResult.success(causesWithEventCount);
         } catch (error) {
-            console.error('Error fetching causes:', error);
             return ServiceResult.failed();
         }
     }
@@ -33,7 +54,6 @@ export class CauseService {
                 return ServiceResult.notFound();
             }
         } catch (error) {
-            console.error('Error updating cause:', error);
             return ServiceResult.failed();
         }
     }
@@ -48,7 +68,38 @@ export class CauseService {
                 return ServiceResult.notFound();
             }
         } catch (error) {
-            console.error('Error deleting cause:', error);
+            return ServiceResult.failed();
+        }
+    }
+
+    async getCauseWithEventCount(id: number): Promise<ServiceResult<Cause & { eventsCount: number }>> {
+        try {
+            const cause = await Cause.findByPk(id, {
+                include: [{
+                    model: require('../models/event.model').Event,
+                    as: 'events',
+                    attributes: []
+                }],
+                attributes: {
+                    include: [
+                        [
+                            require('sequelize').literal('(SELECT COUNT(*) FROM event WHERE event.causeId = cause.id)'),
+                            'eventsCount'
+                        ]
+                    ]
+                }
+            });
+            
+            if (cause) {
+                const causeData = cause.get({ plain: true });
+                return ServiceResult.success({
+                    ...causeData,
+                    eventsCount: parseInt(causeData.eventsCount) || 0
+                });
+            } else {
+                return ServiceResult.notFound();
+            }
+        } catch (error) {
             return ServiceResult.failed();
         }
     }
