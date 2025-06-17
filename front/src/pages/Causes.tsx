@@ -80,25 +80,21 @@ const Causes = () => {
     try {
       console.log('🔄 Updating cause after donation:', { causeId, amount });
       
-      // Trouver la cause actuelle
       const currentCause = causes.find(c => c.id === causeId);
       if (!currentCause) {
         console.error('Cause not found for update:', causeId);
         return;
       }
 
-      // Calculer les nouvelles valeurs
       const newRaisedAmount = currentCause.raisedAmount + amount;
       const newSupporters = currentCause.supporters + 1;
 
-      // Mettre à jour via l'API
       const updateResult = await CauseService.updateCause(parseInt(causeId), {
         raisedAmount: newRaisedAmount.toString(),
         supporters: newSupporters
       });
 
       if (updateResult.errorCode === ServiceErrorCode.success) {
-        // Mettre à jour l'état local
         setCauses(prevCauses => 
           prevCauses.map(cause => 
             cause.id === causeId 
@@ -142,7 +138,6 @@ const Causes = () => {
         comparison = 0;
     }
     
-    // Appliquer l'ordre de tri
     return sortOrder === 'desc' ? -comparison : comparison;
   });
 
