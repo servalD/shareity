@@ -3,8 +3,11 @@ import { Event } from '../models/event.model';
 import { ServiceResult } from './service.result';
 import { Optional } from 'sequelize';
 import { literal } from 'sequelize';
+import { EventService } from './event.service';
 
 export class CauseService {
+    private eventService = new EventService();
+
     async createCause(data: Optional<Cause, 'id'>): Promise<ServiceResult<Cause>> {
         try {
             const cause = await Cause.create(data);
@@ -12,9 +15,7 @@ export class CauseService {
         } catch (error) {
             return ServiceResult.failed();
         }
-    }
-
-    async getAllCauses(): Promise<ServiceResult<Cause[]>> {
+    } async getAllCauses(): Promise<ServiceResult<Cause[]>> {
         try {
             console.log('🔍 CauseService.getAllCauses() called');
 
@@ -42,6 +43,44 @@ export class CauseService {
                 message: error.message,
                 stack: error.stack
             });
+            return ServiceResult.failed();
+        }
+    }
+
+    async getAllCausesWithEventCount(): Promise<ServiceResult<Cause[]>> {
+        try {
+            console.log('🔍 CauseService.getAllCausesWithEventCount() called');
+
+            // 1. Récupérer toutes les causes
+            const causes = await Cause.findAll();
+            console.log('📊 Found causes:', causes.length);
+
+            // 2. Pour chaque cause, récupérer le nombre d'événements
+            const causesWithEventCount = await Promise.all(
+                causes.map(async (cause) => {
+                    const causeData = cause.get({ plain: true });
+
+                    // Utiliser le EventService pour compter les événements
+                    const countResult = await this.eventService.getEventsCount(causeData.id);
+                    let eventsCount = 0;
+
+                    if (countResult.errorCode === 0 && countResult.result) { // 0 = success
+                        eventsCount = countResult.result.count;
+                    }
+
+                    console.log(`📊 Cause ${causeData.id} has ${eventsCount} events`);
+
+                    return {
+                        ...causeData,
+                        eventsCount
+                    };
+                })
+            );
+
+            console.log('✅ Processed causes with event counts:', causesWithEventCount);
+            return ServiceResult.success(causesWithEventCount);
+        } catch (error: any) {
+            console.error('❌ Error in CauseService.getAllCausesWithEventCount():', error);
             return ServiceResult.failed();
         }
     }

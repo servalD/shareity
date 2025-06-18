@@ -22,7 +22,8 @@ export class CauseController {
 
     async getAllCauses(req: Request, res: Response) {
         try {
-            const serviceResult: ServiceResult<Cause[]> = await causeService.getAllCauses();
+            // Utiliser la nouvelle méthode avec le vrai compte d'événements
+            const serviceResult: ServiceResult<Cause[]> = await causeService.getAllCausesWithEventCount();
             if (serviceResult.errorCode === ServiceErrorCode.success) {
                 return res.status(200).json(serviceResult.result);
             } else {

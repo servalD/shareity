@@ -1,0 +1,12 @@
+services:
+
+  db:
+    image: mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: mystrongpassword
+      MYSQL_DATABASE: Chariety
+      MYSQL_USER: Chariety
+      MYSQL_PASSWORD: mystrongpassword

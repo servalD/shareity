@@ -14,7 +14,7 @@ import { useToast } from '../components/ToastContainer';
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { isConnected, createNFTCollection } = useWallet();
+  const { isConnected, deployEventWithBackend } = useWallet();
   const { showSuccess, showError, showInfo } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,7 +41,7 @@ const CreateEvent = () => {
       try {
         setIsLoadingCauses(true);
         const result = await CauseService.getAllCauses();
-        
+
         if (result.errorCode === ServiceErrorCode.success && result.result) {
           setCauses(result.result);
           console.log('✅ Causes loaded successfully:', result.result);
@@ -71,14 +71,14 @@ const CreateEvent = () => {
         showError('Invalid File Type', 'Please select an image file');
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
         showError('File Too Large', 'Image size must be less than 5MB');
         return;
       }
 
       setSelectedImage(file);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -95,14 +95,14 @@ const CreateEvent = () => {
         showError('Invalid File Type', 'Please select an image file');
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
         showError('File Too Large', 'Image size must be less than 5MB');
         return;
       }
 
       setSelectedImage(file);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -125,12 +125,12 @@ const CreateEvent = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isAuthenticated) {
       showError('Authentication Required', 'Please connect your DID first');
       return;
     }
-    
+
     if (!isConnected) {
       showError('Wallet Connection Required', 'Please connect your wallet first');
       return;
@@ -150,7 +150,7 @@ const CreateEvent = () => {
 
     try {
       let imageUrl = formData.imageUrl;
-      
+
       if (selectedImage) {
         setIsUploading(true);
         try {
@@ -168,25 +168,45 @@ const CreateEvent = () => {
         }
       }
 
-      showInfo('Creating NFT Collection', 'Setting up the NFT collection for your event...');
-      console.log('🎨 Creating NFT collection for event...');
-      
-      const eventId = Date.now();
-      const collectionMetadata = {
-        name: `${formData.title} - Event Collection`,
-        description: `NFT collection for ${formData.title}. Each NFT represents a ticket to this event.`,
-        eventId: eventId,
-        maxSupply: parseInt(formData.maxAttendees),
-        imageUrl: imageUrl
-      };
+      showInfo('Creating Complete Event Setup', 'Setting up NFT collection via backend, minting tickets, and creating offers...');
+      console.log('🎪 Creating complete event setup via backend...');
 
-      const collectionTxId = await createNFTCollection(collectionMetadata);
-      console.log('✅ NFT collection created with transaction ID:', collectionTxId);
-      showSuccess('NFT Collection Created', `Collection created successfully with transaction ID: ${collectionTxId}`);
+      // Récupérer le nombre total d'événements pour l'utiliser comme taxon
+      let eventsCount = 0;
+      try {
+        console.log('🔢 Fetching total events count for taxon...');
+        const countResult = await EventService.getEventsCount();
+        if (countResult.errorCode === ServiceErrorCode.success && countResult.result) {
+          eventsCount = countResult.result.count;
+          console.log('✅ Current events count:', eventsCount);
+        } else {
+          console.warn('⚠️ Failed to fetch events count, using default taxon');
+          eventsCount = Date.now() % 1000000; // Fallback
+        }
+      } catch (error) {
+        console.error('❌ Error fetching events count:', error);
+        eventsCount = Date.now() % 1000000; // Fallback
+      }
+
+      // Utiliser le déploiement via backend pour tout configurer
+      const eventSetupResult = await deployEventWithBackend({
+        name: formData.title,
+        description: formData.description,
+        eventId: eventsCount,
+        maxSupply: parseInt(formData.maxAttendees),
+        imageUrl: imageUrl,
+        ticketPrice: parseFloat(formData.ticketPrice)
+      });
+
+      console.log('✅ Complete event setup finished via backend:', eventSetupResult);
+      showSuccess(
+        'Blockchain Setup Complete!',
+        `Collection, ${eventSetupResult.ticketNFTIds.length} tickets minted, and ${eventSetupResult.offerTxIds.length} offers created successfully! Total cost: ${eventSetupResult.totalCost} XRP`
+      );
 
       showInfo('Creating Event', 'Saving event details to database...');
       console.log('💾 Creating event in database...');
-      
+
       const eventData: IEvent = {
         title: formData.title,
         description: formData.description,
@@ -201,28 +221,28 @@ const CreateEvent = () => {
       };
 
       const result = await EventService.createEvent(eventData);
-      
+
       if (result.errorCode === ServiceErrorCode.success && result.result) {
         console.log('✅ Event created successfully:', result.result);
         showSuccess(
-          'Event Created Successfully!', 
+          'Event Created Successfully!',
           'Your event is now live with NFT collection ready for ticket sales.'
         );
-        
+
         setTimeout(() => {
           navigate('/events');
         }, 2000);
       } else {
         console.error('❌ Failed to create event in database');
         showError(
-          'Database Error', 
+          'Database Error',
           'Event created on blockchain but failed to save to database. Please contact support.'
         );
       }
     } catch (error) {
       console.error('❌ Error creating event:', error);
       showError(
-        'Creation Failed', 
+        'Creation Failed',
         error instanceof Error ? error.message : 'An unexpected error occurred while creating the event.'
       );
     } finally {
@@ -262,34 +282,30 @@ const CreateEvent = () => {
               const Icon = step.icon;
               const isActive = currentStep === step.number;
               const isCompleted = currentStep > step.number;
-              
+
               return (
                 <div key={step.number} className="flex items-center">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                    isActive 
-                      ? 'bg-blue-600 border-blue-600 text-white' 
-                      : isCompleted 
-                        ? 'bg-green-600 border-green-600 text-white'
-                        : 'border-gray-600 text-gray-400'
-                  }`}>
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${isActive
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : isCompleted
+                      ? 'bg-green-600 border-green-600 text-white'
+                      : 'border-gray-600 text-gray-400'
+                    }`}>
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="ml-3">
-                    <div className={`text-sm font-medium ${
-                      isActive ? 'text-blue-400' : isCompleted ? 'text-green-400' : 'text-gray-400'
-                    }`}>
+                    <div className={`text-sm font-medium ${isActive ? 'text-blue-400' : isCompleted ? 'text-green-400' : 'text-gray-400'
+                      }`}>
                       Step {step.number}
                     </div>
-                    <div className={`text-xs ${
-                      isActive ? 'text-white' : 'text-gray-500'
-                    }`}>
+                    <div className={`text-xs ${isActive ? 'text-white' : 'text-gray-500'
+                      }`}>
                       {step.title}
                     </div>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-4 ${
-                      isCompleted ? 'bg-green-600' : 'bg-gray-600'
-                    }`} />
+                    <div className={`flex-1 h-0.5 mx-4 ${isCompleted ? 'bg-green-600' : 'bg-gray-600'
+                      }`} />
                   )}
                 </div>
               );
@@ -299,12 +315,12 @@ const CreateEvent = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
-            
+
             {/* Step 1: Basic Info */}
             {currentStep === 1 && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-white mb-6">Basic Information</h2>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Event Title</label>
                   <input
@@ -372,7 +388,7 @@ const CreateEvent = () => {
             {currentStep === 2 && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-white mb-6">Event Details</h2>
-                
+
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Maximum Attendees</label>
@@ -511,7 +527,7 @@ const CreateEvent = () => {
             {currentStep === 3 && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-white mb-6">Review & Submit</h2>
-                
+
                 <div className="bg-white/5 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Event Summary</h3>
                   <div className="grid md:grid-cols-2 gap-6 text-sm">
@@ -599,7 +615,7 @@ const CreateEvent = () => {
               >
                 Previous
               </button>
-              
+
               {currentStep < 3 ? (
                 <button
                   type="button"

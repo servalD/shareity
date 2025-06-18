@@ -3,6 +3,7 @@ import { X, CreditCard, Gift, Loader, Check, AlertCircle } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { TicketService } from '../services/tickets.service';
+import { EventService } from '../services/events.service';
 import { IEventWithCauseId } from '../models/events.model';
 import { ServiceErrorCode } from '../services/service.result';
 import { useToast } from '../components/ToastContainer';
@@ -15,7 +16,7 @@ interface PurchaseModalProps {
 }
 
 const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, type }) => {
-  const { sendPayment, mintNFT, balance, address } = useWallet();
+  const { sendPayment, buyNFT, findFirstTicketWithSellOffer, balance, address } = useWallet();
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const [step, setStep] = useState<'confirm' | 'processing' | 'success'>('confirm');
@@ -40,7 +41,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
       if (type === 'ticket') {
         showInfo('Checking Availability', 'Verifying ticket availability...');
         const availabilityResult = await TicketService.getEventAvailability(event.id!);
-        
+
         if (availabilityResult.errorCode !== ServiceErrorCode.success || !availabilityResult.result) {
           throw new Error('Failed to check event availability');
         }
@@ -72,30 +73,33 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
         if (!event.cause?.addressDestination) {
           console.warn('⚠️ No cause address found, using default test address');
         }
-        
-        const paymentTxId = await sendPayment(causeAddress, amount);
-        setTransactionId(paymentTxId);
 
-        showInfo('Minting NFT', 'Creating NFT ticket for your wallet...');
-        const nftMetadata = {
-          t: 'tkt',
-          eid: event.id,
-          n: event.title.substring(0, 20),
-          d: event.date.substring(0, 10),
-          l: `${event.city}, ${event.country}`.substring(0, 25),
-          i: (event.imageUrl || 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image').substring(0, 50),
-          p: event.ticketPrice,
-          tid: ticketResult.result.id 
-        };
+        // const paymentTxId = await sendPayment(causeAddress, amount);
+        // setTransactionId(paymentTxId);
 
-        const nftTokenId = await mintNFT(nftMetadata);
-        setNftId(nftTokenId);
+        showInfo('Getting Backend Address', 'Retrieving backend payment address...');
+        const backendAddressResult = await EventService.getBackendPaymentAddress();
+        if (backendAddressResult.errorCode !== ServiceErrorCode.success || !backendAddressResult.result) {
+          throw new Error('Failed to get backend payment address');
+        }
+        const backendAddress = backendAddressResult.result.address;
 
-        showInfo('Finalizing Ticket', 'Updating ticket with NFT information...');
+        showInfo('Finding Available Tickets', 'Searching for available NFT tickets...');
+        const eventOffer = await findFirstTicketWithSellOffer(event.id! - 1, backendAddress);
+
+        if (!eventOffer) {
+          throw new Error('No tickets available for this event');
+        }
+
+        showInfo('Purchasing NFT Ticket', 'Buying NFT ticket from available offers...');
+        const purchaseTxId = await buyNFT(eventOffer.nft_offer_index);
+        setNftId(eventOffer.NFTokenID);
+
+        showInfo('Finalizing Ticket', 'Updating ticket with purchase information...');
         const updateResult = await TicketService.updateTicketWithNFT(
           ticketResult.result.id,
-          nftTokenId,
-          paymentTxId
+          eventOffer.NFTokenID,
+          purchaseTxId
         );
 
         if (updateResult.errorCode !== ServiceErrorCode.success) {
@@ -157,7 +161,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
             <div className="bg-white/5 rounded-lg p-4">
               <h3 className="font-semibold text-white mb-2">{event.title}</h3>
               <p className="text-gray-400 text-sm">
-                {type === 'ticket' 
+                {type === 'ticket'
                   ? 'You will receive an NFT ticket as proof of purchase'
                   : 'Your donation will support the charitable cause'
                 }
@@ -214,7 +218,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
               <h4 className="text-yellow-400 font-medium text-sm mb-2">Transaction Details</h4>
               <ul className="text-xs text-gray-300 space-y-1">
                 <li>• Payment will be processed on XRPL Testnet</li>
-                {type === 'ticket' && <li>• NFT ticket will be minted to your wallet</li>}
+                {type === 'ticket' && <li>• NFT ticket will be purchased from available offers</li>}
                 <li>• Funds will be distributed via multi-escrow</li>
                 <li>• Transaction is irreversible once confirmed</li>
               </ul>
@@ -223,11 +227,10 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
             <button
               onClick={handlePurchase}
               disabled={isProcessing || isInsufficientBalance}
-              className={`w-full py-3 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 ${
-                type === 'ticket'
+              className={`w-full py-3 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 ${type === 'ticket'
                   ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                   : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700'
-              } text-white`}
+                } text-white`}
             >
               {type === 'ticket' ? `Purchase for ${amount} XRP` : `Donate ${amount} XRP`}
             </button>
@@ -251,7 +254,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• Validating payment details</li>
                 <li>• Submitting transaction to XRPL</li>
-                {type === 'ticket' && <li>• Minting NFT ticket</li>}
+                {type === 'ticket' && <li>• Purchasing NFT ticket</li>}
                 <li>• Setting up escrow distribution</li>
                 <li>• Confirming transaction</li>
               </ul>

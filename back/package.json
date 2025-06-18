@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsc && node dist/index.js",
-    "build": "tsc"
+    "build": "tsc",
+    "dev": "tsc && node dist/index.js",
+    "fund-wallet": "node scripts/fund-backend-wallet.js"
   },
   "author": "",
   "license": "ISC",
@@ -23,6 +25,8 @@
     "express": "^4.19.2",
     "mysql2": "^3.11.3",
     "sequelize": "latest",
-    "sequelize-typescript": "^2.1.6"
-  }
+    "sequelize-typescript": "^2.1.6",
+    "xrpl": "^4.3.0"
+  },
+  "packageManager": "pnpm@8.15.4+sha1.c85a4305534f76d461407b59277b954bac97b5c4"
 }

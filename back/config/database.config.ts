@@ -4,10 +4,11 @@ config();
 
 const sequelize = new Sequelize('Chariety', process.env.DATABASE_USERNAME as string, process.env.DATABASE_PASSWORD, {
     host: process.env.HOST,
-    port: Number(process.env.PORT),
+    port: Number(process.env.DATABASE_PORT),
     dialect: 'mysql',
     dialectOptions: {
-        socketPath: '/Applications/MAMP/tmp/mysql/mysql.sock',
+        connectTimeout: 10000,
+        // socketPath: '/home/gaetan/Documents/ESGI/XRPL/shareity/back/mysqld.sock',
     },
 });
 
