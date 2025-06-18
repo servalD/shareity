@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Wallet as WalletIcon, User as UserIcon, Menu, X, Shield, Calendar, Heart } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
-// import DIDModal from './DIDModal';
 
 const Navbar: React.FC = () => {
-  const { isAuthenticated, logout } = useAuth();
   const { isConnected, address, balance, network, connectWallet, disconnectWallet } = useWallet();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
@@ -28,7 +25,7 @@ const Navbar: React.FC = () => {
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <Shield className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">XRPL Toolkit</span>
+              <span className="text-xl font-bold text-white">Shareity</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -61,7 +58,7 @@ const Navbar: React.FC = () => {
                 {network.toUpperCase()}
               </div>
 
-              {/* Connect Wallet if DID connected but wallet not */}
+              {/* Connect Wallet */}
               {!isConnected ? (
                 <button
                   onClick={connectWallet}
@@ -71,36 +68,27 @@ const Navbar: React.FC = () => {
                   <span>Connect Wallet</span>
                 </button>
               ) : (
-                <>
-                  {/* Connect DID if not authenticated */}
-                  {!isAuthenticated ? (
-                    <div className="text-gray-400 text-sm">
-                      DID connection disabled
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm text-gray-300">
+                      {address?.slice(0, 6)}...{address?.slice(-4)}
                     </div>
-                  ) : (
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <div className="text-sm text-gray-300">
-                          {address?.slice(0, 6)}...{address?.slice(-4)}
-                        </div>
-                        <div className="text-xs text-green-400">{balance} XRP</div>
-                      </div>
-                      <Link
-                        to="/dashboard"
-                        className="flex items-center space-x-2 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-200"
-                      >
-                        <UserIcon className="w-4 h-4" />
-                        <span>Dashboard</span>
-                      </Link>
-                    </div>
-                  )}
+                    <div className="text-xs text-green-400">{balance} XRP</div>
+                  </div>
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center space-x-2 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-200"
+                  >
+                    <UserIcon className="w-4 h-4" />
+                    <span>Dashboard</span>
+                  </Link>
                   <button
-                    onClick={logout}
+                    onClick={disconnectWallet}
                     className="text-gray-400 hover:text-red-500 transition-colors"
                   >
-                    Logout
+                    Disconnect
                   </button>
-                </>
+                </div>
               )}
             </div>
 
@@ -147,12 +135,7 @@ const Navbar: React.FC = () => {
               </div>
 
               <div className="pt-4 border-t border-white/10">
-                {!isAuthenticated ? (
-                  <div className="w-full flex items-center justify-center space-x-2 text-gray-400 px-4 py-2 rounded-lg">
-                    <UserIcon className="w-4 h-4" />
-                    <span>DID connection disabled</span>
-                  </div>
-                ) : !isConnected ? (
+                {!isConnected ? (
                   <button
                     onClick={() => {
                       connectWallet();
@@ -176,12 +159,11 @@ const Navbar: React.FC = () => {
                     <button
                       onClick={() => {
                         disconnectWallet();
-                        logout();
                         setIsMenuOpen(false);
                       }}
                       className="w-full text-center text-red-500 hover:text-red-600 transition-colors"
                     >
-                      Logout
+                      Disconnect Wallet
                     </button>
                   </div>
                 )}
@@ -190,8 +172,6 @@ const Navbar: React.FC = () => {
           </div>
         )}
       </nav>
-
-      {/* <DIDModal isOpen={isDIDModalOpen} onClose={() => setIsDIDModalOpen(false)} /> */}
     </>
   );
 };

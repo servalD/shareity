@@ -1,7 +1,36 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Heart, Shield, Zap, Users, TrendingUp, ArrowRight, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Heart, Shield, Zap, Users, TrendingUp, ArrowRight, Star, Loader } from 'lucide-react';
+import { StatsService, GlobalStats } from '../services/stats.service';
+import { ServiceErrorCode } from '../services/service.result';
 
 const Home = () => {
+  const [globalStats, setGlobalStats] = useState<GlobalStats>({
+    eventsCreated: 0,
+    fundsRaised: 0,
+    causesSupported: 0,
+    nftTicketsSold: 0
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Load global statistics
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        setIsLoadingStats(true);
+        const statsResult = await StatsService.getGlobalStats();
+        if (statsResult.errorCode === ServiceErrorCode.success && statsResult.result) {
+          setGlobalStats(statsResult.result);
+        }
+      } catch (error) {
+        console.error('Error loading global stats:', error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    loadStats();
+  }, []);
   const features = [
     {
       icon: Shield,
@@ -42,10 +71,26 @@ const Home = () => {
   ];
 
   const stats = [
-    { label: 'Events Created', value: '2,847', icon: Calendar },
-    { label: 'Funds Raised', value: '₹1.2M', icon: TrendingUp },
-    { label: 'Causes Supported', value: '156', icon: Heart },
-    { label: 'NFT Tickets Sold', value: '18,392', icon: Star }
+    { 
+      label: 'Events Created', 
+      value: isLoadingStats ? '...' : StatsService.formatNumber(globalStats.eventsCreated), 
+      icon: Calendar 
+    },
+    { 
+      label: 'Funds Raised', 
+      value: isLoadingStats ? '...' : StatsService.formatCurrency(globalStats.fundsRaised), 
+      icon: TrendingUp 
+    },
+    { 
+      label: 'Causes Supported', 
+      value: isLoadingStats ? '...' : StatsService.formatNumber(globalStats.causesSupported), 
+      icon: Heart 
+    },
+    { 
+      label: 'NFT Tickets Sold', 
+      value: isLoadingStats ? '...' : StatsService.formatNumber(globalStats.nftTicketsSold), 
+      icon: Star 
+    }
   ];
 
   return (
@@ -92,7 +137,13 @@ const Home = () => {
                 <div key={index} className="text-center">
                   <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
                     <Icon className="w-8 h-8 text-blue-400 mx-auto mb-4" />
-                    <div className="text-3xl font-bold text-white mb-2">{stat.value}</div>
+                    <div className="text-3xl font-bold text-white mb-2 flex items-center justify-center">
+                      {isLoadingStats ? (
+                        <Loader className="w-6 h-6 animate-spin" />
+                      ) : (
+                        stat.value
+                      )}
+                    </div>
                     <div className="text-gray-400 text-sm">{stat.label}</div>
                   </div>
                 </div>
