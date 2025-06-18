@@ -76,7 +76,7 @@ const CreatorDashboard = () => {
     }
   ];
 
-  
+
 
   const analytics = {
     monthlyRevenue: [
@@ -181,11 +181,10 @@ const CreatorDashboard = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl transition-all duration-200 ${
-                    activeTab === tab.id
+                  className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl transition-all duration-200 ${activeTab === tab.id
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-400 hover:text-white hover:bg-white/10'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{tab.label}</span>
@@ -197,12 +196,12 @@ const CreatorDashboard = () => {
 
         {/* Tab Content */}
         <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
-          
+
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
               <h2 className="text-2xl font-bold text-white mb-6">Dashboard Overview</h2>
-              
+
               {/* Quick Actions */}
               <div className="grid md:grid-cols-3 gap-6 mb-8">
                 <Link
@@ -269,7 +268,7 @@ const CreatorDashboard = () => {
                   <span>New Event</span>
                 </Link>
               </div>
-              
+
               <div className="space-y-4">
                 {myEvents.map((event) => (
                   <div key={event.id} className="p-6 bg-white/5 rounded-lg border border-white/10">
@@ -289,7 +288,7 @@ const CreatorDashboard = () => {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="grid md:grid-cols-4 gap-4 mb-4">
                       <div className="text-center p-3 bg-white/5 rounded">
                         <p className="text-2xl font-bold text-white">{event.registered}</p>
@@ -337,7 +336,7 @@ const CreatorDashboard = () => {
           {activeTab === 'analytics' && (
             <div className="space-y-8">
               <h2 className="text-2xl font-bold text-white mb-6">Analytics & Insights</h2>
-              
+
               {/* Revenue Chart */}
               <div className="bg-white/5 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Monthly Revenue & Charity Impact</h3>
@@ -346,7 +345,7 @@ const CreatorDashboard = () => {
                     <div key={index} className="text-center">
                       <div className="mb-2">
                         <div className="w-full bg-gray-700 rounded h-20 flex flex-col justify-end overflow-hidden">
-                          <div 
+                          <div
                             className="bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-500"
                             style={{ height: `${(month.revenue / 5000) * 100}%` }}
                           ></div>
@@ -404,22 +403,21 @@ const CreatorDashboard = () => {
           {activeTab === 'transactions' && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">Transaction History</h2>
-              
+
               <div className="space-y-4">
                 {recentTransactions.map((tx) => (
                   <div key={tx.id} className="p-6 bg-white/5 rounded-lg border border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-4">
-                        <div className={`w-3 h-3 rounded-full ${
-                          tx.type === 'ticket_sale' ? 'bg-blue-400' :
-                          tx.type === 'escrow_release' ? 'bg-green-400' :
-                          'bg-pink-400'
-                        }`}></div>
+                        <div className={`w-3 h-3 rounded-full ${tx.type === 'ticket_sale' ? 'bg-blue-400' :
+                            tx.type === 'escrow_release' ? 'bg-green-400' :
+                              'bg-pink-400'
+                          }`}></div>
                         <div>
                           <h3 className="font-semibold text-white">
                             {tx.type === 'ticket_sale' ? 'Ticket Sale' :
-                             tx.type === 'escrow_release' ? 'Escrow Release' :
-                             'Charity Distribution'}
+                              tx.type === 'escrow_release' ? 'Escrow Release' :
+                                'Charity Distribution'}
                           </h3>
                           <p className="text-sm text-gray-400">{tx.event}</p>
                         </div>
@@ -429,9 +427,12 @@ const CreatorDashboard = () => {
                         <p className="text-sm text-gray-400">{format(tx.date, 'MMM dd, yyyy')}</p>
                       </div>
                     </div>
-                    
-                    <div className="text-xs text-gray-500 font-mono">
-                      Transaction ID: {tx.txId}
+
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs text-gray-400">Transaction ID:</span>
+                      <span className="text-xs text-gray-300 font-mono bg-black/20 p-2 rounded border border-white/10 break-all">
+                        {tx.txId}
+                      </span>
                     </div>
                   </div>
                 ))}

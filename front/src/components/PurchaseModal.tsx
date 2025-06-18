@@ -228,8 +228,8 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
               onClick={handlePurchase}
               disabled={isProcessing || isInsufficientBalance}
               className={`w-full py-3 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 ${type === 'ticket'
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                  : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700'
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700'
                 } text-white`}
             >
               {type === 'ticket' ? `Purchase for ${amount} XRP` : `Donate ${amount} XRP`}
@@ -279,9 +279,9 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
               <h4 className="text-green-400 font-medium mb-3">Transaction Details</h4>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex flex-col space-y-1">
                   <span className="text-gray-300">Transaction ID</span>
-                  <span className="text-white font-mono text-xs">{transactionId}</span>
+                  <span className="text-white font-mono text-xs break-all bg-black/20 p-2 rounded border border-white/10">{transactionId}</span>
                 </div>
                 {type === 'ticket' && ticketId && (
                   <div className="flex justify-between">
@@ -290,9 +290,9 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, event, t
                   </div>
                 )}
                 {type === 'ticket' && (
-                  <div className="flex justify-between">
+                  <div className="flex flex-col space-y-1">
                     <span className="text-gray-300">NFT Token ID</span>
-                    <span className="text-white font-mono text-xs">{nftId}</span>
+                    <span className="text-white font-mono text-xs break-all bg-black/20 p-2 rounded border border-white/10">{nftId}</span>
                   </div>
                 )}
                 <div className="flex justify-between">

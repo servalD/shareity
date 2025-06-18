@@ -115,8 +115,8 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, o
                     key={preset}
                     onClick={() => setAmount(preset)}
                     className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${amount === preset
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
                       }`}
                   >
                     {preset}
@@ -275,9 +275,9 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose, cause, o
                   <span className="text-gray-300">To:</span>
                   <span className="text-green-400 font-medium">{cause.title}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col space-y-1">
                   <span className="text-gray-300">Transaction ID:</span>
-                  <span className="text-blue-400 font-mono text-xs break-all">{transactionId}</span>
+                  <span className="text-blue-400 font-mono text-xs break-all bg-black/20 p-2 rounded border border-white/10">{transactionId}</span>
                 </div>
               </div>
             </div>
