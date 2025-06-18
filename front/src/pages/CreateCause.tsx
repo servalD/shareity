@@ -37,14 +37,14 @@ const CreateCause = () => {
         alert('Please select an image file');
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
         alert('Image size must be less than 5MB');
         return;
       }
 
       setSelectedImage(file);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -61,14 +61,14 @@ const CreateCause = () => {
         alert('Please select an image file');
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
         alert('Image size must be less than 5MB');
         return;
       }
 
       setSelectedImage(file);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -106,12 +106,11 @@ const CreateCause = () => {
 
     try {
       let imageUrl = '';
-      
+
       if (selectedImage) {
         setIsUploading(true);
         try {
           imageUrl = await PinataService.uploadImage(selectedImage);
-          console.log('✅ Image uploaded to Pinata:', imageUrl);
         } catch (error) {
           console.error('❌ Failed to upload image:', error);
           alert('Failed to upload image. Please try again.');
@@ -129,13 +128,11 @@ const CreateCause = () => {
         location: formData.location,
         addressDestination: formData.addressDestination,
         imageUrl: imageUrl,
-        raisedAmount: '0', 
+        raisedAmount: '0',
         goal: Number(formData.goal),
         supporters: formData.supporters,
         isClosed: formData.isClosed
       };
-
-      console.log('Creating cause:', causeData);
 
       const result = await CauseService.createCause(causeData);
 
@@ -148,16 +145,12 @@ const CreateCause = () => {
         throw new Error('No cause data returned from server');
       }
 
-      console.log('✅ Cause created successfully:', createdCause);
-
       const nftMetadata = {
         name: createdCause.title,
         image: imageUrl || ''
       };
 
-      console.log('🎨 Minting NFT for cause:', nftMetadata);
       const nftTxId = await mintNFT(nftMetadata);
-      console.log('✅ NFT minted successfully, transaction ID:', nftTxId);
 
       alert(`Cause created successfully! 
       🎉 Cause ID: ${createdCause.id}
@@ -407,8 +400,8 @@ const CreateCause = () => {
                 type="submit"
                 disabled={isLoading || isUploading}
                 className={`w-full py-4 rounded-lg transition-all duration-200 font-semibold text-lg ${isLoading || isUploading
-                    ? 'bg-gray-600 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700'
+                  ? 'bg-gray-600 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700'
                   } text-white`}
               >
                 {isUploading ? 'Uploading Image...' : isLoading ? 'Creating Cause & NFT...' : 'Submit Cause for Review'}

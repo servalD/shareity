@@ -17,13 +17,8 @@ export class CauseService {
         }
     } async getAllCauses(): Promise<ServiceResult<Cause[]>> {
         try {
-            console.log('🔍 CauseService.getAllCauses() called');
-
             // Requête simple sans jointures complexes pour tester
             const causes = await Cause.findAll();
-
-            console.log('📊 Raw causes from database:', causes.length);
-            console.log('📋 Causes data:', causes.map(c => c.get({ plain: true })));
 
             // Pour l'instant, on met eventsCount à 0 par défaut
             const causesWithEventCount = causes.map(cause => {
@@ -34,7 +29,6 @@ export class CauseService {
                 };
             });
 
-            console.log('✅ Processed causes:', causesWithEventCount);
             return ServiceResult.success(causesWithEventCount);
         } catch (error: any) {
             console.error('❌ Error in CauseService.getAllCauses():', error);
@@ -49,11 +43,8 @@ export class CauseService {
 
     async getAllCausesWithEventCount(): Promise<ServiceResult<Cause[]>> {
         try {
-            console.log('🔍 CauseService.getAllCausesWithEventCount() called');
-
             // 1. Récupérer toutes les causes
             const causes = await Cause.findAll();
-            console.log('📊 Found causes:', causes.length);
 
             // 2. Pour chaque cause, récupérer le nombre d'événements
             const causesWithEventCount = await Promise.all(
@@ -68,8 +59,6 @@ export class CauseService {
                         eventsCount = countResult.result.count;
                     }
 
-                    console.log(`📊 Cause ${causeData.id} has ${eventsCount} events`);
-
                     return {
                         ...causeData,
                         eventsCount
@@ -77,7 +66,6 @@ export class CauseService {
                 })
             );
 
-            console.log('✅ Processed causes with event counts:', causesWithEventCount);
             return ServiceResult.success(causesWithEventCount);
         } catch (error: any) {
             console.error('❌ Error in CauseService.getAllCausesWithEventCount():', error);

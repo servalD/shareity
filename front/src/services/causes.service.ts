@@ -19,21 +19,16 @@ export class CauseService {
 
     static async getAllCauses(): Promise<ServiceResult<ICauseId[] | undefined>> {
         try {
-            console.log('📡 Making request to:', `${ApiService.baseURL}/causes`);
             const res = await axios.get(`${ApiService.baseURL}/causes`, {
                 timeout: 10000, // 10 secondes timeout
                 headers: {
                     'Content-Type': 'application/json',
                 }
             });
-            console.log('📥 Raw response:', res);
-            console.log('📊 Response status:', res.status);
-            console.log('📋 Response data:', res.data);
 
             if (res.status === 200) {
                 return ServiceResult.success(res.data);
             }
-            console.log('⚠️ Unexpected status code:', res.status);
             return ServiceResult.failed();
         } catch (err) {
             console.error('❌ Error in getAllCauses:', err);

@@ -20,19 +20,8 @@ const Events = () => {
       try {
         setLoading(true);
         const result = await EventService.getAllEvents();
-        
+
         if (result.errorCode === ServiceErrorCode.success && result.result) {
-          console.log('✅ Events loaded:', result.result);
-          console.log('🔍 Checking imageUrl for events:');
-          result.result.forEach((event, index) => {
-            console.log(`Event ${index + 1}:`, {
-              id: event.id,
-              title: event.title,
-              imageUrl: event.imageUrl,
-              hasImage: !!event.imageUrl,
-              causeAddress: event.cause?.addressDestination
-            });
-          });
           setEvents(result.result);
         } else {
           const errorMsg = 'Failed to load events';
@@ -54,8 +43,8 @@ const Events = () => {
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      event.description.toLowerCase().includes(searchTerm.toLowerCase());
+
     return matchesSearch;
   });
 
@@ -255,7 +244,7 @@ const Events = () => {
             <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No events found</h3>
             <p className="text-gray-400 mb-6">
-              {events.length === 0 
+              {events.length === 0
                 ? "No events have been created yet. Be the first to create an event!"
                 : "Try adjusting your filters or search terms to find more events."
               }

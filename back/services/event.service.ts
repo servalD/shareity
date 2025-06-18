@@ -137,14 +137,10 @@ export class EventService {
 
     async getEventsCount(causeId?: number): Promise<ServiceResult<{ causeId?: number; count: number }>> {
         try {
-            console.log('🔢 EventService.getEventsCount() called with causeId:', causeId);
-
             const whereCondition = causeId ? { causeId } : {};
             const count = await Event.count({
                 where: whereCondition
             });
-
-            console.log('📊 Events count result:', { causeId, count });
 
             const result = causeId
                 ? { causeId, count }
@@ -176,14 +172,10 @@ export class EventService {
         totalCost: number;
     }>> {
         try {
-            console.log('🎪 EventService.deployEvent called with data:', deploymentData);
-
             // 1. Calculer et vérifier le coût du déploiement
             const expectedCost = this.calculateEventDeploymentCost(deploymentData.maxSupply);
-            console.log('💰 Expected deployment cost:', expectedCost, 'XRP');
 
             // 2. Vérifier le paiement
-            console.log('🔍 Verifying payment...');
             const paymentVerification = await this.xrplService.verifyPayment(
                 deploymentData.paymentTxId,
                 expectedCost,
@@ -195,10 +187,7 @@ export class EventService {
                 return ServiceResult.failed();
             }
 
-            console.log('✅ Payment verified successfully');
-
             // 3. Créer la collection NFT
-            console.log('📦 Creating NFT collection...');
             const collectionResult = await this.xrplService.createNFTCollection({
                 name: deploymentData.name,
                 description: deploymentData.description,
@@ -211,11 +200,9 @@ export class EventService {
             }
 
             const collectionTxId = collectionResult.result;
-            console.log('✅ Collection created with txId:', collectionTxId);
 
             // 4. Créer les tickets XRPL (2x maxSupply: pour mint + offers)
             const totalTicketsNeeded = deploymentData.maxSupply * 2;
-            console.log(`🎟️ Creating ${totalTicketsNeeded} XRPL tickets...`);
 
             const ticketsResult = await this.xrplService.createTickets(totalTicketsNeeded);
             if (ticketsResult.errorCode !== ServiceErrorCode.success || !ticketsResult.result) {

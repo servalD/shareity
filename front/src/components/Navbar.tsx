@@ -6,10 +6,9 @@ import { useWallet } from '../contexts/WalletContext';
 // import DIDModal from './DIDModal';
 
 const Navbar: React.FC = () => {
-  const { isAuthenticated, user, authorize, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const { isConnected, address, balance, network, connectWallet, disconnectWallet } = useWallet();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDIDModalOpen, setIsDIDModalOpen] = useState(false);
   const location = useLocation();
 
   const navigation = [
@@ -18,7 +17,6 @@ const Navbar: React.FC = () => {
     { name: 'Causes', href: '/causes', icon: Heart },
   ];
   const isActive = (path: string) => location.pathname === path;
-  console.log(isAuthenticated, isConnected, address, balance, user);
 
   return (
     <>
@@ -57,8 +55,8 @@ const Navbar: React.FC = () => {
             <div className="hidden md:flex items-center space-x-4">
               {/* Network Label */}
               <div className={`px-2 py-1 rounded-full text-xs font-medium border ${network === 'mainnet'
-                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                  : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
                 }`}>
                 {network.toUpperCase()}
               </div>
@@ -75,30 +73,27 @@ const Navbar: React.FC = () => {
               ) : (
                 <>
                   {/* Connect DID if not authenticated */}
-                  {!isAuthenticated ?
-                    < button
-                      onClick={() => setIsDIDModalOpen(true)}
-                      className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
-                    >
-                      <UserIcon className="w-4 h-4" />
-                      <span>Connect DID</span>
-                    </button> : (
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <div className="text-sm text-gray-300">
-                            {address?.slice(0, 6)}...{address?.slice(-4)}
-                          </div>
-                          <div className="text-xs text-green-400">{balance} XRP</div>
+                  {!isAuthenticated ? (
+                    <div className="text-gray-400 text-sm">
+                      DID connection disabled
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <div className="text-sm text-gray-300">
+                          {address?.slice(0, 6)}...{address?.slice(-4)}
                         </div>
-                        <Link
-                          to="/dashboard"
-                          className="flex items-center space-x-2 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-200"
-                        >
-                          <UserIcon className="w-4 h-4" />
-                          <span>Dashboard</span>
-                        </Link>
+                        <div className="text-xs text-green-400">{balance} XRP</div>
                       </div>
-                    )}
+                      <Link
+                        to="/dashboard"
+                        className="flex items-center space-x-2 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-200"
+                      >
+                        <UserIcon className="w-4 h-4" />
+                        <span>Dashboard</span>
+                      </Link>
+                    </div>
+                  )}
                   <button
                     onClick={logout}
                     className="text-gray-400 hover:text-red-500 transition-colors"
@@ -144,8 +139,8 @@ const Navbar: React.FC = () => {
               {/* Network Label for Mobile */}
               <div className="flex justify-center py-2">
                 <div className={`px-3 py-1 rounded-full text-xs font-medium border ${network === 'mainnet'
-                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                    : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
                   }`}>
                   {network.toUpperCase()}
                 </div>
@@ -153,16 +148,10 @@ const Navbar: React.FC = () => {
 
               <div className="pt-4 border-t border-white/10">
                 {!isAuthenticated ? (
-                  <button
-                    onClick={() => {
-                      setIsDIDModalOpen(true);
-                      setIsMenuOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg"
-                  >
+                  <div className="w-full flex items-center justify-center space-x-2 text-gray-400 px-4 py-2 rounded-lg">
                     <UserIcon className="w-4 h-4" />
-                    <span>Connect DID</span>
-                  </button>
+                    <span>DID connection disabled</span>
+                  </div>
                 ) : !isConnected ? (
                   <button
                     onClick={() => {

@@ -3,17 +3,12 @@ import { Client, xrpToDrops } from 'xrpl';
 import { useAuth } from './AuthContext';
 import { XummTypes } from 'xumm-sdk';
 import { ResolvedFlow } from 'xumm-oauth2-pkce';
-import { Ticket } from 'xrpl/dist/npm/models/ledger';
 import { EventService } from '../services/events.service';
 import { ServiceErrorCode } from '../services/service.result';
 
 // Helpers
 export async function sendTx(payload: XummTypes.XummPostPayloadBodyJson, sdk: ResolvedFlow['sdk']): Promise<string | undefined> {
-  console.log('🚀 sendTx called with payload:', payload);
-
   try {
-    console.log('📱 Creating Xumm payload...');
-
     // Validation du payload
     if (!payload.txjson) {
       throw new Error('Invalid payload: missing txjson');
@@ -27,33 +22,22 @@ export async function sendTx(payload: XummTypes.XummPostPayloadBodyJson, sdk: Re
       throw new Error('Invalid payload: missing TransactionType');
     }
 
-    console.log('✅ Payload validation passed');
-
     const payloadSubscripted = await sdk.payload.createAndSubscribe(
       payload,
       evt => {
-        console.log('📨 Payload event received:', evt);
         return 'signed' in evt.data ? evt.data : undefined;
       }
     );
 
-    console.log('📋 Payload created, full object:', payloadSubscripted.payload);
-
     // Accéder à la structure correcte du payload
     const payloadData = payloadSubscripted.payload as any;
-    console.log('🔍 Inspecting payload structure:', Object.keys(payloadData));
 
     // La structure semble être: payload.payload.request_json, payload.meta, etc.
-    const actualPayload = payloadData.payload;
     const meta = payloadData.meta;
-
-    console.log('📱 Payload UUID:', meta?.uuid);
-    console.log('📋 Actual payload structure:', actualPayload ? Object.keys(actualPayload) : 'No payload');
 
     // Construire l'URL Xumm manuellement avec l'UUID
     if (meta?.uuid) {
       const xummUrl = `https://xumm.app/sign/${meta.uuid}`;
-      console.log('🔗 Opening Xumm URL:', xummUrl);
 
       // Ouvrir l'URL dans un nouvel onglet
       const newWindow = window.open(xummUrl, '_blank');
@@ -61,18 +45,11 @@ export async function sendTx(payload: XummTypes.XummPostPayloadBodyJson, sdk: Re
         console.warn('⚠️ Popup blocked! Please manually open:', xummUrl);
         alert(`Popup blocked! Please open this URL manually: ${xummUrl}`);
       }
-    } else {
-      console.log('⚠️ No UUID found in meta, checking for other properties...');
-      console.log('Meta object:', meta);
-      console.log('Available payload properties:', Object.keys(payloadData));
     }
 
-    console.log('⏳ Waiting for payload resolution...');
-    const resolved = await payloadSubscripted.resolved;
-    console.log('✅ Payload resolved:', resolved);
+    await payloadSubscripted.resolved;
 
     const txId = payloadSubscripted.payload.response.txid;
-    console.log('🎯 Transaction ID:', txId);
 
     return txId || undefined;
   } catch (error) {
@@ -101,41 +78,7 @@ interface WalletContextType {
   disconnectWallet: () => void;
   sendPayment: (destination: string, amount: number) => Promise<string>;
   mintNFT: (metadata: Record<string, unknown>) => Promise<string>;
-  createTicket: (ticketCount?: number) => Promise<Ticket[]>;
-  batchMintNFT: (metadataList: Record<string, unknown>[], tickets: Ticket[]) => Promise<string[]>;
-  batchCreateOffer: (offers: Array<{
-    nftokenId: string;
-    amount: number;
-    destination?: string;
-    flags?: number;
-  }>, tickets: Ticket[]) => Promise<string[]>;
-  createNFTCollection: (collectionMetadata: {
-    name: string;
-    description: string;
-    eventId: number;
-    maxSupply: number;
-    imageUrl: string;
-  }) => Promise<string>;
   buyNFT: (nftOfferIndex: string) => Promise<string>;
-  // getEventTickets: (eventId: number, backendAddress: string) => Promise<Array<{
-  //   NFTokenID: string;
-  //   taxon: number;
-  //   ticketIndex: number;
-  //   uri?: string;
-  //   metadata?: any;
-  // }>>;
-  createCompleteEventSetup: (eventMetadata: {
-    name: string;
-    description: string;
-    eventId: number;
-    maxSupply: number;
-    imageUrl: string;
-    ticketPrice: number;
-  }) => Promise<{
-    collectionTxId: string;
-    ticketNFTIds: string[];
-    offerTxIds: string[];
-  }>;
   findFirstTicketWithSellOffer: (eventId: number, backendAddress: string) => Promise<{ nft_offer_index: string; NFTokenID: string } | null>;
   deployEventWithBackend: (eventMetadata: {
     name: string;
@@ -185,14 +128,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const refreshBalance = useCallback(async () => {
     if (!clientRef.current || !address) {
-      console.log('⚠️ Cannot refresh balance: client or address missing', {
-        hasClient: !!clientRef.current,
-        address
-      });
       return;
     }
     try {
-      console.log('💰 Fetching balance for address:', address);
       const resp = await clientRef.current.request({
         command: 'account_info',
         account: address,
@@ -200,7 +138,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       });
       const drops = resp.result.account_data.Balance;
       const balanceXRP = Number(drops) / 1_000_000;
-      console.log('✅ Balance fetched:', balanceXRP, 'XRP');
       setBalance(balanceXRP);
     } catch (err) {
       console.error('❌ Failed to fetch balance', err);
@@ -211,7 +148,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeWallet = async () => {
       if (sdk && user?.walletAddress) {
-        console.log('🔗 Initializing wallet for address:', user.walletAddress);
         setIsConnected(true);
         setAddress(user.walletAddress);
 
@@ -223,7 +159,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
         try {
           await client.connect();
-          console.log('🌐 XRPL client connected, fetching balance...');
           await refreshBalance();
         } catch (error) {
           console.error('❌ Failed to connect XRPL client or fetch balance:', error);
@@ -400,511 +335,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       throw error;
     }
   }, [sdk, address]);
-
-  /**
-   * Creates a Ticket via TicketCreate transaction
-   * @param ticketCount - number of tickets to create (optional, defaults to 1)
-   * @returns transaction hash
-   */
-  const createTicket = useCallback(async (ticketCount: number = 1): Promise<Ticket[]> => {
-    console.log('🎫 createTicket called with count:', ticketCount);
-
-    if (!sdk || !address) {
-      const error = `Wallet not connected - sdk: ${!!sdk}, address: ${address}`;
-      console.error('❌ createTicket error:', error);
-      throw new Error(error);
-    }
-
-    try {
-      // Vérifier que l'account existe
-      if (!clientRef.current) {
-        throw new Error('XRPL client not connected');
-      }
-
-      try {
-        const accountInfo = await clientRef.current.request({
-          command: 'account_info',
-          account: address,
-          ledger_index: 'validated'
-        });
-        console.log('✅ Account info retrieved for ticket creation:', accountInfo.result.account_data);
-      } catch (accountError) {
-        console.error('❌ Failed to get account info:', accountError);
-        throw new Error('Account not found or invalid');
-      }
-
-      // Valider le nombre de tickets
-      if (ticketCount < 1 || ticketCount > 250) {
-        throw new Error('Invalid ticket count (must be between 1 and 250)');
-      }
-
-      console.log('📝 Creating TicketCreate transaction payload...');
-      const payload = {
-        txjson: {
-          TransactionType: 'TicketCreate' as const,
-          Account: address,
-          TicketCount: ticketCount
-        }
-      };
-
-      console.log('📋 Full TicketCreate payload:', JSON.stringify(payload, null, 2));
-
-      const txId = await sendTx(payload, sdk);
-
-      // Après la transaction, récupérer les tickets créés
-      if (txId) {
-        console.log('🎫 Fetching created tickets for account:', address);
-        const ticketsResponse = await clientRef.current.request({
-          command: 'account_objects',
-          account: address,
-          type: 'ticket',
-          ledger_index: 'validated'
-        });
-
-        const tickets = ticketsResponse.result.account_objects as Ticket[];
-        console.log('✅ Tickets retrieved:', tickets);
-
-        return tickets;
-      }
-      throw new Error('Ticket creation was rejected');
-    } catch (error) {
-      console.error('❌ Error in createTicket:', error);
-      throw error;
-    }
-  }, [sdk, address, refreshBalance]);
-
-  /**
-   * Mints multiple NFTs in batch using pre-created tickets
-   * @param metadataList - Array of metadata objects for each NFT
-   * @param tickets - Array of tickets to use for the transactions
-   * @returns array of transaction hashes
-   */
-  const batchMintNFT = useCallback(async (
-    metadataList: Record<string, unknown>[],
-    tickets: Ticket[],
-    taxonBase: number = 0
-  ): Promise<string[]> => {
-    console.log('🎨 batchMintNFT called with metadata count:', metadataList.length);
-    console.log('🎫 Available tickets:', tickets.length);
-
-    if (!sdk || !address) {
-      const error = `Wallet not connected - sdk: ${!!sdk}, address: ${address}`;
-      console.error('❌ batchMintNFT error:', error);
-      throw new Error(error);
-    }
-
-    if (metadataList.length === 0) {
-      throw new Error('No metadata provided for minting');
-    }
-
-    if (tickets.length < metadataList.length) {
-      throw new Error(`Not enough tickets. Need ${metadataList.length}, have ${tickets.length}`);
-    }
-
-    try {
-      // Vérifier que l'account existe et peut créer des NFTs
-      if (!clientRef.current) {
-        throw new Error('XRPL client not connected');
-      }
-
-      try {
-        const accountInfo = await clientRef.current.request({
-          command: 'account_info',
-          account: address,
-          ledger_index: 'validated'
-        });
-        console.log('✅ Account info retrieved for batch mint:', accountInfo.result.account_data);
-      } catch (accountError) {
-        console.error('❌ Failed to get account info:', accountError);
-        throw new Error('Account not found or invalid');
-      }
-
-      const encoder = new TextEncoder();
-
-      // Créer toutes les transactions NFTokenMint en utilisant map
-      const nftTransactionPromises = metadataList.map(async (metadata, index) => {
-        const ticket = tickets[index];
-
-        console.log(`🎨 Preparing NFT ${index + 1}/${metadataList.length} with ticket:`, ticket.TicketSequence);
-
-        // Encoder les métadonnées en hex
-        const jsonString = JSON.stringify(metadata);
-        const uint8Array = encoder.encode(jsonString);
-        const uriHex = Array.from(uint8Array)
-          .map(byte => byte.toString(16).padStart(2, '0'))
-          .join('');
-
-        console.log(`🔗 URI hex generated for NFT ${index + 1}:`, uriHex.substring(0, 50) + '...');
-        console.log(`📏 URI length for NFT ${index + 1}:`, uriHex.length, 'characters');
-
-        // Vérifier la taille de l'URI
-        if (uriHex.length > 256) {
-          console.error(`❌ URI is too long for NFT ${index + 1}:`, uriHex.length, 'characters (max 256)');
-          throw new Error(`NFT ${index + 1} metadata is too large. Please use shorter data.`);
-        }
-
-        // Créer et retourner la promesse de transaction
-        const payload = {
-          txjson: {
-            TransactionType: 'NFTokenMint' as const,
-            Account: address,
-            URI: uriHex,
-            NFTokenTaxon: taxonBase * 1000 + index, // Utiliser un taxon unique pour chaque NFT
-            Flags: 0,
-            Sequence: 0, // Utilise le ticket au lieu de sequence
-            TicketSequence: ticket.TicketSequence
-          }
-        };
-
-        return sendTx(payload, sdk);
-      });
-
-      console.log('📝 Created batch of NFT mint transaction promises:', nftTransactionPromises.length);
-
-      // Attendre que toutes les transactions se terminent
-      const txIds = await Promise.all(nftTransactionPromises);
-
-      console.log('🎉 Batch minting completed successfully!');
-      console.log('📊 Transaction IDs:', txIds);
-
-      // Rafraîchir le solde après les transactions
-      await refreshBalance();
-
-      // Filtrer les txIds valides et les retourner
-      const validTxIds = txIds.filter(txId => txId !== undefined) as string[];
-
-      if (validTxIds.length === 0) {
-        throw new Error('All batch NFT mint transactions were rejected');
-      }
-
-      return validTxIds;
-
-    } catch (error) {
-      console.error('❌ Error in batchMintNFT:', error);
-      throw error;
-    }
-  }, [sdk, address, refreshBalance]);
-
-  /**
-   * Creates a batch of NFTokenCreateOffer transactions using pre-created tickets
-   * @param offers - Array of offer objects containing nftokenId, amount, destination (optional)
-   * @param tickets - Array of tickets to use for the transactions
-   * @returns array of transaction hashes
-   */
-  const batchCreateOffer = useCallback(async (
-    offers: Array<{
-      nftokenId: string;
-      amount: number;
-      destination?: string;
-      flags?: number;
-    }>,
-    tickets: Ticket[]
-  ): Promise<string[]> => {
-    console.log('🏷️ batchCreateOffer called with offers count:', offers.length);
-    console.log('🎫 Available tickets:', tickets.length);
-
-    if (!sdk || !address) {
-      const error = `Wallet not connected - sdk: ${!!sdk}, address: ${address}`;
-      console.error('❌ batchCreateOffer error:', error);
-      throw new Error(error);
-    }
-
-    if (offers.length === 0) {
-      throw new Error('No offers provided');
-    }
-
-    if (tickets.length < offers.length) {
-      throw new Error(`Not enough tickets. Need ${offers.length}, have ${tickets.length}`);
-    }
-
-    try {
-      // Vérifier que l'account existe
-      if (!clientRef.current) {
-        throw new Error('XRPL client not connected');
-      }
-
-      try {
-        const accountInfo = await clientRef.current.request({
-          command: 'account_info',
-          account: address,
-          ledger_index: 'validated'
-        });
-        console.log('✅ Account info retrieved for batch create offer:', accountInfo.result.account_data);
-      } catch (accountError) {
-        console.error('❌ Failed to get account info:', accountError);
-        throw new Error('Account not found or invalid');
-      }
-
-      // Créer toutes les transactions NFTokenCreateOffer en utilisant map
-      const offerTransactionPromises = offers.map(async (offer, index) => {
-        const ticket = tickets[index];
-
-        console.log(`🏷️ Preparing offer ${index + 1}/${offers.length} with ticket:`, ticket.TicketSequence);
-
-        // Validation de l'offer
-        if (!offer.nftokenId || offer.nftokenId.length !== 64) {
-          throw new Error(`Invalid NFTokenID for offer ${index + 1}`);
-        }
-
-        if (offer.amount <= 0) {
-          throw new Error(`Invalid amount for offer ${index + 1}`);
-        }
-
-        // Round amount to 6 decimal places to avoid floating-point precision issues
-        const roundedAmount = Math.round(offer.amount * 1000000) / 1000000;
-
-        // Créer le payload de base
-        const txjson: any = {
-          TransactionType: 'NFTokenCreateOffer' as const,
-          Account: address,
-          NFTokenID: offer.nftokenId,
-          Amount: xrpToDrops(roundedAmount).toString(),
-          Sequence: 0, // Utilise le ticket au lieu de sequence
-          TicketSequence: ticket.TicketSequence,
-          Flags: offer.flags || 0
-        };
-
-        // Ajouter la destination si spécifiée (pour sell offer)
-        if (offer.destination) {
-          txjson.Destination = offer.destination;
-        }
-
-        const payload = { txjson };
-
-        console.log(`📝 Offer ${index + 1} payload:`, JSON.stringify(payload, null, 2));
-
-        return sendTx(payload, sdk);
-      });
-
-      console.log('📝 Created batch of NFTokenCreateOffer transaction promises:', offerTransactionPromises.length);
-
-      // Attendre que toutes les transactions se terminent
-      const txIds = await Promise.all(offerTransactionPromises);
-
-      console.log('🎉 Batch offer creation completed successfully!');
-      console.log('📊 Transaction IDs:', txIds);
-
-      // Rafraîchir le solde après les transactions
-      await refreshBalance();
-
-      // Filtrer les txIds valides et les retourner
-      const validTxIds = txIds.filter(txId => txId !== undefined) as string[];
-
-      if (validTxIds.length === 0) {
-        throw new Error('All batch NFTokenCreateOffer transactions were rejected');
-      }
-
-      return validTxIds;
-
-    } catch (error) {
-      console.error('❌ Error in batchCreateOffer:', error);
-      throw error;
-    }
-  }, [sdk, address, refreshBalance]);
-
-  /**
-   * Creates an NFT collection for an event via NFTokenMint transaction
-   * @param collectionMetadata - Collection metadata including name, description, eventId, maxSupply, imageUrl
-   * @returns transaction hash
-   */
-  const createNFTCollection = useCallback(async (collectionMetadata: {
-    name: string;
-    description: string;
-    eventId: number;
-    imageUrl: string;
-  }): Promise<string> => {
-    console.log('🎨 createNFTCollection called with metadata:', collectionMetadata);
-
-    if (!sdk || !address) {
-      const error = `Wallet not connected - sdk: ${!!sdk}, address: ${address}`;
-      console.error('❌ createNFTCollection error:', error);
-      throw new Error(error);
-    }
-
-    try {
-      // Vérifier que l'account existe et peut créer des NFTs
-      if (!clientRef.current) {
-        throw new Error('XRPL client not connected');
-      }
-
-      try {
-        const accountInfo = await clientRef.current.request({
-          command: 'account_info',
-          account: address,
-          ledger_index: 'validated'
-        });
-        console.log('✅ Account info retrieved:', accountInfo.result.account_data);
-      } catch (accountError) {
-        console.error('❌ Failed to get account info:', accountError);
-        throw new Error('Account not found or invalid');
-      }
-
-      // Utiliser TextEncoder au lieu de Buffer pour la compatibilité navigateur
-      const encoder = new TextEncoder();
-
-      // Créer les métadonnées avec l'image
-      const defaultImageUrl = 'https://via.placeholder.com/400x300/6366f1/ffffff?text=No+Image';
-      const imageUrl = collectionMetadata.imageUrl || defaultImageUrl;
-
-      // Optimiser les métadonnées pour réduire la taille
-      const collectionData = {
-        name: collectionMetadata.name.substring(0, 10), // Nom limité à 10 caractères
-        image: imageUrl, // Image URL limitée à 50 caractères
-        e: collectionMetadata.eventId, // Event ID
-      };
-
-      const jsonString = JSON.stringify(collectionData);
-      const uint8Array = encoder.encode(jsonString);
-
-      // Convertir en hexadécimal
-      const uriHex = Array.from(uint8Array)
-        .map(byte => byte.toString(16).padStart(2, '0'))
-        .join('');
-
-      console.log('🔗 Collection URI hex generated:', uriHex);
-      console.log('📏 URI length:', uriHex.length, 'characters');
-      console.log('🖼️ Image URL:', imageUrl);
-      console.log('📋 Metadata JSON:', jsonString);
-
-      // Vérifier si l'URI n'est pas trop long
-      if (uriHex.length > 256) {
-        console.error('❌ URI is too long:', uriHex.length, 'characters (max 256)');
-        console.error('📋 Metadata that caused the issue:', collectionData);
-        throw new Error('NFT metadata is too large. Please use shorter names and descriptions.');
-      }
-
-      console.log('📝 Creating NFT collection transaction payload...');
-      const payload = {
-        txjson: {
-          TransactionType: 'NFTokenMint' as const,
-          Account: address,
-          URI: uriHex,
-          NFTokenTaxon: collectionMetadata.eventId,
-          Flags: 0
-        }
-      };
-
-      console.log('📋 Full transaction payload:', JSON.stringify(payload, null, 2));
-
-      const txId = await sendTx(payload, sdk);
-
-      console.log('📤 NFT collection transaction sent, txId:', txId);
-      if (txId) return txId;
-      throw new Error('NFT collection creation was rejected');
-    } catch (error) {
-      console.error('❌ Error in createNFTCollection:', error);
-      throw error;
-    }
-  }, [sdk, address]);
-
-  /**
-   * Creates a complete event setup: collection + tickets + offers
-   * @param eventMetadata - Event metadata including name, description, eventId, maxSupply, imageUrl, ticketPrice
-   * @returns object with collection txId, ticket NFT IDs, and offer txIds
-   */
-  const createCompleteEventSetup = useCallback(async (eventMetadata: {
-    name: string;
-    description: string;
-    eventId: number;
-    maxSupply: number;
-    imageUrl: string;
-    ticketPrice: number;
-  }) => {
-    console.log('🎪 createCompleteEventSetup called with metadata:', eventMetadata);
-
-    if (!sdk || !address) {
-      throw new Error('Wallet not connected');
-    }
-
-    try {
-      // 1. Créer la collection NFT pour l'événement
-      console.log('📦 Step 1: Creating NFT collection...');
-      const collectionTxId = await createNFTCollection({
-        name: eventMetadata.name,
-        description: eventMetadata.description,
-        eventId: eventMetadata.eventId,
-        imageUrl: eventMetadata.imageUrl
-      });
-
-      console.log('✅ Collection created with txId:', collectionTxId);
-
-      // Attendre que la collection soit confirmée
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // 2. Créer les tickets XRPL (20 tickets: 10 pour mint + 10 pour offers)
-      const totalTicketsNeeded = eventMetadata.maxSupply * 2;
-      console.log(`🎟️ Step 2: Creating ${totalTicketsNeeded} XRPL tickets (${eventMetadata.maxSupply} for minting + ${eventMetadata.maxSupply} for offers)...`);
-
-      const tickets = await createTicket(totalTicketsNeeded);
-      console.log('✅ XRPL tickets created:', tickets.length);
-
-      // Diviser les tickets: première moitié pour mint, deuxième moitié pour offers
-      const mintTickets = tickets.slice(0, eventMetadata.maxSupply);
-      const offerTickets = tickets.slice(eventMetadata.maxSupply);
-
-      console.log('🔄 Mint tickets:', mintTickets.map(t => t.TicketSequence));
-      console.log('🏷️ Offer tickets:', offerTickets.map(t => t.TicketSequence));
-
-      // 3. Préparer les métadonnées pour tous les tickets de l'événement
-      console.log('📝 Step 3: Preparing metadata for event tickets...');
-      const ticketMetadataList = Array.from({ length: eventMetadata.maxSupply }, (_, index) => ({
-        name: `Ticket ${index + 1}`,
-        image: eventMetadata.imageUrl,
-        e: eventMetadata.eventId,
-      }));
-
-      // 4. Batch mint tous les tickets NFT
-      console.log('🎨 Step 4: Batch minting all event tickets...');
-      const mintTxIds = await batchMintNFT(ticketMetadataList, mintTickets, eventMetadata.eventId);
-      console.log('✅ Batch minting completed. TxIds:', mintTxIds);
-
-      // Attendre que les NFTs soient confirmés
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // 5. Récupérer les NFTokenIDs des tickets créés
-      console.log('🔍 Step 5: Retrieving minted NFTokenIDs...');
-      const nftObjects = await clientRef.current!.request({
-        command: 'account_nfts',
-        account: address,
-        ledger_index: 'validated'
-      });
-
-      // Filtrer les NFTs créés récemment (basé sur les txIds)
-      const recentNFTs = nftObjects.result.account_nfts.slice(-eventMetadata.maxSupply);
-      const nftTokenIds = recentNFTs.map(nft => nft.NFTokenID);
-
-      console.log('🎫 Retrieved NFTokenIDs:', nftTokenIds);
-
-      if (nftTokenIds.length < eventMetadata.maxSupply) {
-        throw new Error(`Expected ${eventMetadata.maxSupply} NFTs, but found ${nftTokenIds.length}`);
-      }
-
-      // 6. Préparer les offres de vente pour tous les tickets
-      console.log('🏷️ Step 6: Preparing sell offers for all tickets...');
-      const offers = nftTokenIds.map(nftTokenId => ({
-        nftokenId: nftTokenId,
-        amount: eventMetadata.ticketPrice,
-        flags: 1 // tfSellNFToken flag pour une sell offer
-      }));
-
-      // 7. Batch créer toutes les offres de vente
-      console.log('💰 Step 7: Batch creating sell offers...');
-      const offerTxIds = await batchCreateOffer(offers, offerTickets);
-      console.log('✅ Batch offer creation completed. TxIds:', offerTxIds);
-
-      console.log('🎉 Complete event setup finished successfully!');
-
-      return {
-        collectionTxId,
-        ticketNFTIds: nftTokenIds,
-        offerTxIds
-      };
-
-    } catch (error) {
-      console.error('❌ Error in createCompleteEventSetup:', error);
-      throw error;
-    }
-  }, [sdk, address, createNFTCollection, createTicket, batchMintNFT, batchCreateOffer]);
 
   /**
    * Déploie un événement complet via le backend XRPL
@@ -1090,7 +520,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const findFirstTicketWithSellOffer = useCallback(async (
     eventId: number,
     backendAddress: string
-  ): Promise<{ nft_offer_index: string;  NFTokenID: string} | null> => {
+  ): Promise<{ nft_offer_index: string; NFTokenID: string } | null> => {
     console.log('🔍 findFirstTicketWithSellOffer called for event:', eventId, 'from backend:', backendAddress);
 
     if (!clientRef.current) {
@@ -1253,13 +683,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     disconnectWallet,
     sendPayment,
     mintNFT,
-    createTicket,
-    batchMintNFT,
-    batchCreateOffer,
-    createNFTCollection,
     buyNFT,
     findFirstTicketWithSellOffer,
-    createCompleteEventSetup,
     deployEventWithBackend,
     createEscrow
   };
